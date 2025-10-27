@@ -15,11 +15,10 @@ class ProjectBase(BaseModel):
     is_public: bool = False
     status: str | None = Field(default=None, max_length=50)
     github_repo_url: str | None = Field(default=None, max_length=500)
-    secret_link: str | None = Field(default=None, max_length=255)
 
 
 class ProjectCreate(ProjectBase):
-    owner_id: UUID
+    owner_id: UUID | None = Field(default=None)
 
 
 class ProjectUpdate(BaseModel):
@@ -28,7 +27,6 @@ class ProjectUpdate(BaseModel):
     is_public: bool | None = None
     status: str | None = Field(default=None, max_length=50)
     github_repo_url: str | None = Field(default=None, max_length=500)
-    secret_link: str | None = Field(default=None, max_length=255)
 
 
 class ProjectFileResponse(BaseModel):

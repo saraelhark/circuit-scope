@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import secrets
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import Select, func, select
@@ -19,11 +18,16 @@ from app.api.schemas.projects import (
     ProjectUpdate,
 )
 from app.services.storage.base import StorageService
-from db.models import Project, ProjectFile
+from db.models import Project, ProjectFile, User
 
 
-def _generate_secret_link() -> str:
-    return secrets.token_urlsafe(16)
+async def _ensure_owner_exists(session: AsyncSession, owner_id: UUID) -> User:
+    owner = await session.get(User, owner_id)
+    if owner is None:
+        owner = User(id=owner_id)
+        session.add(owner)
+        await session.flush()
+    return owner
 
 
 async def create_project(
@@ -32,14 +36,21 @@ async def create_project(
     payload: ProjectCreate,
     upload_file: UploadFile | None,
 ) -> tuple[ProjectResponse, dict[str, Any] | None]:
+    if payload.owner_id is None:
+        owner = User()
+        session.add(owner)
+        await session.flush()
+    else:
+        owner = await _ensure_owner_exists(session, payload.owner_id)
+
     project = Project(
-        owner_id=payload.owner_id,
+        owner_id=owner.id,
         name=payload.name,
         description=payload.description,
         is_public=payload.is_public,
         status=payload.status or "draft",
         github_repo_url=payload.github_repo_url,
-        secret_link=payload.secret_link or _generate_secret_link(),
+        secret_link=None,
     )
 
     session.add(project)

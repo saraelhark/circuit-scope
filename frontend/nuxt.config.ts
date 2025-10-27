@@ -13,7 +13,19 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE,
+      apiBase: "/api/v1",
+    },
+    private: {
+      backendUrl: process.env.NUXT_PRIVATE_BACKEND_URL,
     },
   },
+
+  components: [
+    {
+      // To resolve the warning about multiple component files resolving to the same name
+      path: '~/components',
+      extensions: ['vue'],
+    },
+  ],
+
 })

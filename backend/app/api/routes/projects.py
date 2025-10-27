@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -26,22 +26,30 @@ from app.services.projects import (
 )
 from app.services.storage.base import StorageService
 
-router = APIRouter(prefix="/projects", tags=["projects"])
+router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
-@router.post("/", response_model=ProjectUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=ProjectUploadResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_project_endpoint(
     project_data: str = Form(..., description="JSON-encoded ProjectCreate payload"),
     upload: UploadFile | None = File(default=None, description="KiCad project ZIP"),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageService = Depends(get_storage_service),
 ) -> ProjectUploadResponse:
+    logger.info("Attempting to create project: %s", project_data)
     try:
         payload = ProjectCreate.model_validate_json(project_data)
     except ValidationError as exc:  # pragma: no cover - request validation path
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()
+        ) from exc
 
-    project_response, upload_result = await create_project(session, storage, payload, upload)
+    project_response, upload_result = await create_project(
+        session, storage, payload, upload
+    )
     return ProjectUploadResponse(project=project_response, upload_result=upload_result)
 
 
@@ -53,7 +61,10 @@ async def list_projects_endpoint(
     owner_id: UUID | None = None,
     session: AsyncSession = Depends(get_db_session),
 ) -> ProjectListResponse:
-    return await list_projects(session, page=page, size=size, only_public=only_public, owner_id=owner_id)
+    logger.info("Attempting to list projects")
+    return await list_projects(
+        session, page=page, size=size, only_public=only_public, owner_id=owner_id
+    )
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)

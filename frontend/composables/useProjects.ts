@@ -1,0 +1,56 @@
+import type {
+    ListProjectsQuery,
+    Project,
+    ProjectCreatePayload,
+    ProjectListResponse,
+    ProjectUploadResponse,
+} from "~/types/api/projects"
+
+export interface ProjectUpdatePayload {
+    name?: string | null
+    description?: string | null
+    is_public?: boolean | null
+    status?: string | null
+    github_repo_url?: string | null
+}
+
+export function useProject() {
+    const {
+        public: { apiBase },
+    } = useRuntimeConfig()
+
+    const listProjects = (query: ListProjectsQuery = {}) =>
+        $fetch<ProjectListResponse>(`${apiBase}/projects/`, { query })
+
+    const getProject = (id: string) => $fetch<Project>(`${apiBase}/projects/${id}`)
+
+    const createProject = (payload: ProjectCreatePayload, upload?: File) => {
+        const formData = new FormData()
+        formData.append("project_data", JSON.stringify(payload))
+        if (upload) {
+            formData.append("upload", upload)
+        }
+
+        return $fetch<ProjectUploadResponse>(`${apiBase}/projects/`, {
+            method: "POST",
+            body: formData,
+        })
+    }
+
+    const updateProject = (id: string, payload: ProjectUpdatePayload) =>
+        $fetch<Project>(`${apiBase}/projects/${id}`, {
+            method: "PATCH",
+            body: payload,
+        })
+
+    const deleteProject = (id: string) =>
+        $fetch<void>(`${apiBase}/projects/${id}`, { method: "DELETE" })
+
+    return {
+        listProjects,
+        getProject,
+        createProject,
+        updateProject,
+        deleteProject,
+    }
+}

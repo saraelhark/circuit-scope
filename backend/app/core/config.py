@@ -15,18 +15,24 @@ class Settings(BaseSettings):
 
     app_name: str = "Circuit Scope API"
     debug: bool = False
-    api_prefix: str = "/api"
+    api_prefix: str = "/api/v1"
 
     database_url: str
 
-    cors_origins: list[AnyHttpUrl] | None = Field(default=None, description="Allowed CORS origins")
+    cors_origins: list[AnyHttpUrl] | None = Field(
+        default=None, description="Allowed CORS origins"
+    )
     cors_allow_credentials: bool = True
     cors_allow_methods: list[str] = Field(default_factory=lambda: ["*"])
     cors_allow_headers: list[str] = Field(default_factory=lambda: ["*"])
 
-    storage_backend: str = Field(default="local", description="Selected storage backend identifier")
+    storage_backend: str = Field(
+        default="local", description="Selected storage backend identifier"
+    )
     storage_local_base_path: Path = Field(default_factory=lambda: Path("./var/storage"))
-    storage_public_base_url: HttpUrl | None = Field(default=None, description="Base URL for serving stored files")
+    storage_public_base_url: HttpUrl | None = Field(
+        default=None, description="Base URL for serving stored files"
+    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -42,7 +48,9 @@ class Settings(BaseSettings):
             return value
         return Path(value).expanduser().resolve()
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
 
 @lru_cache

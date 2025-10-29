@@ -37,6 +37,12 @@ export interface ProjectUploadResponse {
   upload_result: ProjectUploadResult | null
 }
 
+export interface ProjectPreviewResponse {
+  schematic: string | null
+  layout: string | null
+  view3d: string | null
+}
+
 export interface ProjectCreatePayload {
   name: string
   description?: string | null

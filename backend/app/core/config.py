@@ -34,6 +34,15 @@ class Settings(BaseSettings):
         default=None, description="Base URL for serving stored files"
     )
 
+    kicad_cli_path: str = Field(
+        default="kicad-cli", description="Executable used for KiCad command-line operations"
+    )
+    kicad_cli_timeout_seconds: int = Field(
+        default=120,
+        description="Max seconds to wait for KiCad CLI operations before aborting",
+        ge=1,
+    )
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_cors_origins(cls, value: str | list[str] | None) -> list[str] | None:

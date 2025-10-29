@@ -58,3 +58,9 @@ class ProjectListResponse(BaseModel):
 class ProjectUploadResponse(BaseModel):
     project: ProjectResponse
     upload_result: dict[str, Any] | None = None
+
+
+class ProjectPreviewResponse(BaseModel):
+    schematic: str | None
+    layout: str | None
+    view3d: str | None

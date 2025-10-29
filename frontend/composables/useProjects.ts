@@ -4,6 +4,7 @@ import type {
     ProjectCreatePayload,
     ProjectListResponse,
     ProjectUploadResponse,
+    ProjectPreviewResponse,
 } from "~/types/api/projects"
 
 export interface ProjectUpdatePayload {
@@ -23,6 +24,9 @@ export function useProject() {
         $fetch<ProjectListResponse>(`${apiBase}/projects/`, { query })
 
     const getProject = (id: string) => $fetch<Project>(`${apiBase}/projects/${id}`)
+
+    const getProjectPreviews = (id: string) =>
+        $fetch<ProjectPreviewResponse>(`${apiBase}/projects/${id}/previews`)
 
     const createProject = (payload: ProjectCreatePayload, upload?: File) => {
         const formData = new FormData()
@@ -49,6 +53,7 @@ export function useProject() {
     return {
         listProjects,
         getProject,
+        getProjectPreviews,
         createProject,
         updateProject,
         deleteProject,

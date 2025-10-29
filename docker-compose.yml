@@ -1,0 +1,11 @@
+services:
+  backend:
+    platform: linux/amd64
+    build:
+      context: ./backend
+    env_file: ./backend/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/var/storage:/app/var/storage

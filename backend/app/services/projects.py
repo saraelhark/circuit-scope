@@ -17,6 +17,7 @@ from app.api.schemas.projects import (
     ProjectResponse,
     ProjectUpdate,
 )
+from app.services.previews import process_project_archive
 from app.services.storage.base import StorageService
 from db.models import Project, ProjectFile, User
 
@@ -79,6 +80,13 @@ async def create_project(
         )
         session.add(project_file)
         upload_result = {"filename": filename, "storage_path": storage_path}
+
+        try:
+            process_project_archive(storage, project.id, storage_path)
+        except Exception:  # noqa: BLE001
+            # Failures during preview generation should not block project creation.
+            logger = logging.getLogger(__name__)
+            logger.exception("Preview generation failed for project %s", project.id)
 
     try:
         await session.commit()

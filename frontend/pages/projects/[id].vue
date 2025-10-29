@@ -12,7 +12,7 @@ import {
 } from "~/components/ui/card"
 import { formatDateTime } from "~/lib/formatters"
 import { normaliseStatus, statusVariant, visibilityLabel } from "~/lib/projects"
-import type { Project } from "~/types/api/projects"
+import type { Project, ProjectPreviewResponse } from "~/types/api/projects"
 import { useProject } from "~/composables/useProjects"
 
 definePageMeta({
@@ -24,7 +24,7 @@ const router = useRouter()
 
 const projectId = computed(() => route.params.id as string)
 
-const { getProject } = useProject()
+const { getProject, getProjectPreviews } = useProject()
 
 const { data, error, refresh, status } = useAsyncData<Project>(
   `project-${projectId.value}`,
@@ -35,6 +35,16 @@ const { data, error, refresh, status } = useAsyncData<Project>(
 )
 
 const project = computed(() => data.value)
+
+const { data: previewData, status: previewStatus } = useAsyncData<ProjectPreviewResponse>(
+  `project-${projectId.value}-previews`,
+  () => getProjectPreviews(projectId.value),
+  {
+    watch: [projectId],
+  },
+)
+
+const previews = computed(() => previewData.value)
 
 useHead(() => ({
   title: project.value ? `${project.value.name} – Project – Circuit Scope` : "Project – Circuit Scope",
@@ -132,6 +142,49 @@ function goBack() {
                 <span class="font-medium text-foreground">Files:</span>
                 {{ project.files.length }}
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card class="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Previews</CardTitle>
+            <CardDescription>
+              Automatically generated assets from the uploaded KiCad archive.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div v-if="previewStatus === 'pending'"
+              class="flex h-40 items-center justify-center text-sm text-muted-foreground">
+              Generating previews…
+            </div>
+            <div v-else class="grid gap-6 md:grid-cols-2">
+              <div class="space-y-3">
+                <h3 class="text-sm font-medium text-muted-foreground">Schematic</h3>
+                <div v-if="previews?.schematic" class="overflow-hidden rounded-md border">
+                  <img :src="previews.schematic" alt="Schematic preview" class="w-full bg-muted" />
+                </div>
+                <p v-else class="text-sm text-muted-foreground">Preview not available.</p>
+              </div>
+
+              <div class="space-y-3">
+                <h3 class="text-sm font-medium text-muted-foreground">PCB layout</h3>
+                <div v-if="previews?.layout" class="overflow-hidden rounded-md border">
+                  <img :src="previews.layout" alt="PCB layout preview" class="w-full bg-muted" />
+                </div>
+                <p v-else class="text-sm text-muted-foreground">Preview not available.</p>
+              </div>
+
+              <div class="space-y-3 md:col-span-2">
+                <h3 class="text-sm font-medium text-muted-foreground">3D view</h3>
+                <div v-if="previews?.view3d" class="flex items-center gap-3 text-sm">
+                  <a :href="previews.view3d" target="_blank" rel="noopener" class="underline">
+                    Download 3D model
+                  </a>
+                  <span class="text-muted-foreground">(.glb)</span>
+                </div>
+                <p v-else class="text-sm text-muted-foreground">Preview not available.</p>
+              </div>
             </div>
           </CardContent>
         </Card>

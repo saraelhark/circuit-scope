@@ -61,6 +61,7 @@ class ProjectUploadResponse(BaseModel):
 
 
 class ProjectPreviewResponse(BaseModel):
-    schematic: str | None
-    layout: str | None
-    view3d: str | None
+    project: dict[str, Any]
+    schematics: list[dict[str, Any]]
+    layouts: list[dict[str, Any]]
+    models: list[dict[str, Any]]

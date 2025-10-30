@@ -37,10 +37,22 @@ export interface ProjectUploadResponse {
   upload_result: ProjectUploadResult | null
 }
 
+export interface PreviewAsset {
+  id: string
+  filename: string
+  title?: string
+  page?: number
+  layers?: string[]
+  placeholder?: boolean
+  path?: string
+  url?: string | null
+}
+
 export interface ProjectPreviewResponse {
-  schematic: string | null
-  layout: string | null
-  view3d: string | null
+  project: Record<string, unknown>
+  schematics: PreviewAsset[]
+  layouts: PreviewAsset[]
+  models: PreviewAsset[]
 }
 
 export interface ProjectCreatePayload {

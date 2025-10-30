@@ -22,7 +22,7 @@ RUN apt-get update && \
         build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-# KiCad CLI tools (via official PPA for KiCad 8)
+# KiCad CLI tools (via official PPA for KiCad 9)
 RUN add-apt-repository -y ppa:kicad/kicad-9.0-releases && \
     apt-get update && \
     apt-get install -y --no-install-recommends kicad && \

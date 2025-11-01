@@ -1,0 +1,280 @@
+<script setup lang="ts">
+import { computed, nextTick, ref, watch } from "vue"
+
+import { Button } from "~/components/ui/button"
+import type { PreviewAsset } from "~/types/api/projects"
+
+export type ViewerView = {
+  id: string
+  label: string
+  asset?: PreviewAsset | null
+  fallbackMessage?: string
+}
+
+const props = withDefaults(
+  defineProps<{
+    views: ViewerView[]
+    initialViewId?: string
+  }>(),
+  {
+    views: () => [],
+    initialViewId: undefined,
+  },
+)
+
+const emit = defineEmits<{
+  viewChange: [viewId: string]
+}>()
+
+const activeViewId = ref<string | null>(null)
+
+const zoom = ref(1)
+const minZoom = 0.25
+const maxZoom = 6
+const zoomStep = 0.2
+const translate = ref({ x: 0, y: 0 })
+
+const panOrigin = ref({ x: 0, y: 0 })
+const pointerStart = ref({ x: 0, y: 0 })
+const isPanning = ref(false)
+const activePointerId = ref<number | null>(null)
+
+const contentRef = ref<HTMLDivElement | null>(null)
+
+const isAssetLoaded = ref(false)
+const assetError = ref<string | null>(null)
+
+const activeView = computed(() => props.views.find((view) => view.id === activeViewId.value) ?? props.views[0])
+const activeAsset = computed(() => activeView.value?.asset)
+
+const hasAsset = computed(() => Boolean(activeAsset.value?.url && !activeAsset.value.placeholder && !assetError.value))
+
+watch(
+  () => props.views,
+  (views) => {
+    if (!views.length) {
+      activeViewId.value = null
+      return
+    }
+
+    if (activeViewId.value && views.some((view) => view.id === activeViewId.value)) {
+      return
+    }
+
+    const preferredId = props.initialViewId && views.some((view) => view.id === props.initialViewId)
+      ? props.initialViewId
+      : views[0]?.id ?? null
+    activeViewId.value = preferredId
+  },
+  { immediate: true },
+)
+
+watch(activeViewId, (value) => {
+  if (!value) return
+  emit("viewChange", value)
+  resetView()
+})
+
+watch(
+  () => activeAsset.value?.url,
+  () => {
+    assetError.value = null
+    isAssetLoaded.value = false
+    nextTick(() => {
+      resetView(true)
+    })
+  },
+)
+
+function setActiveView(viewId: string) {
+  if (activeViewId.value === viewId) return
+  activeViewId.value = viewId
+}
+
+function adjustZoom(direction: 1 | -1) {
+  const nextZoom = Number((zoom.value + direction * zoomStep).toFixed(2))
+  zoom.value = Math.min(maxZoom, Math.max(minZoom, nextZoom))
+}
+
+function resetView(skipZoomReset = false) {
+  if (!skipZoomReset) zoom.value = 1
+  translate.value = { x: 0, y: 0 }
+}
+
+function handleWheel(event: WheelEvent) {
+  if (!contentRef.value) return
+  event.preventDefault()
+
+  const delta = Math.sign(event.deltaY)
+  adjustZoom(delta > 0 ? -1 : 1)
+}
+
+function handlePointerDown(event: PointerEvent) {
+  if (event.pointerType === "touch") event.preventDefault()
+  if (!contentRef.value || isPanning.value) return
+
+  isPanning.value = true
+  activePointerId.value = event.pointerId
+  pointerStart.value = { x: event.clientX, y: event.clientY }
+  panOrigin.value = { ...translate.value }
+  contentRef.value.setPointerCapture(event.pointerId)
+}
+
+function handlePointerMove(event: PointerEvent) {
+  if (!isPanning.value || activePointerId.value !== event.pointerId) return
+  event.preventDefault()
+
+  const deltaX = event.clientX - pointerStart.value.x
+  const deltaY = event.clientY - pointerStart.value.y
+
+  translate.value = {
+    x: panOrigin.value.x + deltaX,
+    y: panOrigin.value.y + deltaY,
+  }
+}
+
+function handlePointerUp(event: PointerEvent) {
+  if (!isPanning.value || activePointerId.value !== event.pointerId) return
+
+  isPanning.value = false
+  activePointerId.value = null
+  contentRef.value?.releasePointerCapture(event.pointerId)
+}
+
+function handlePointerLeave(event: PointerEvent) {
+  if (!isPanning.value || activePointerId.value !== event.pointerId) return
+  handlePointerUp(event)
+}
+
+function handleAssetLoad() {
+  isAssetLoaded.value = true
+}
+
+function handleAssetError() {
+  assetError.value = "Failed to load asset"
+}
+</script>
+
+<template>
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="view in views"
+          :key="view.id"
+          type="button"
+          class="rounded-md border px-3 py-1 text-sm transition"
+          :class="view.id === activeView?.id
+            ? 'border-primary bg-primary/10 text-primary'
+            : 'border-border text-muted-foreground hover:bg-muted'"
+          @click="setActiveView(view.id)"
+        >
+          {{ view.label }}
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <Button size="sm" variant="outline" @click="adjustZoom(-1)">
+          −
+        </Button>
+        <span class="text-xs tabular-nums text-muted-foreground">{{ Math.round(zoom * 100) }}%</span>
+        <Button size="sm" variant="outline" @click="adjustZoom(1)">
+          +
+        </Button>
+        <Button size="sm" variant="secondary" @click="resetView()">
+          Reset
+        </Button>
+      </div>
+    </div>
+
+    <div
+      ref="containerRef"
+      class="relative overflow-hidden rounded-lg border bg-background"
+    >
+      <div v-if="!views.length" class="flex h-[520px] items-center justify-center text-sm text-muted-foreground">
+        No views available.
+      </div>
+      <template v-else>
+        <div
+          ref="contentRef"
+          class="relative h-[520px] touch-none select-none"
+          :class="hasAsset ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+          "
+          @wheel.prevent="handleWheel"
+          @pointerdown="handlePointerDown"
+          @pointermove="handlePointerMove"
+          @pointerup="handlePointerUp"
+          @pointercancel="handlePointerUp"
+          @pointerleave="handlePointerLeave"
+          @dblclick.prevent="resetView()"
+        >
+          <div
+            class="absolute left-1/2 top-1/2 flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+          >
+            <div
+              class="transition-transform duration-75 ease-out"
+              :style="{
+                transform: `translate(${translate.x}px, ${translate.y}px) scale(${zoom})`,
+              }"
+            >
+              <div class="relative flex items-center justify-center">
+                <div
+                  v-if="!hasAsset"
+                  class="flex h-[420px] w-[720px] max-w-[85vw] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-center text-sm text-muted-foreground"
+                >
+                  <p>{{ assetError ?? activeView?.fallbackMessage ?? "No asset available for this view." }}</p>
+                  <p v-if="activeAsset?.placeholder" class="text-xs text-muted-foreground">
+                    Placeholder generated during processing.
+                  </p>
+                </div>
+
+                <div
+                  v-else
+                  class="relative max-h-[70vh] max-w-[80vw]"
+                >
+                  <img
+                    :key="activeAsset?.url ?? activeAsset?.path"
+                    :src="activeAsset?.url ?? ''"
+                    :alt="activeAsset?.title ?? activeAsset?.filename ?? 'Preview asset'"
+                    loading="lazy"
+                    decoding="async"
+                    class="max-h-[70vh] max-w-[80vw] rounded-md shadow-sm"
+                    @load="handleAssetLoad"
+                    @error="handleAssetError"
+                  />
+                  <div
+                    v-if="!isAssetLoaded"
+                    class="absolute inset-0 animate-pulse rounded-md bg-muted/50"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+      <div class="space-x-2">
+        <span>{{ activeView?.label ?? "View" }}</span>
+        <span v-if="activeAsset?.title">• {{ activeAsset.title }}</span>
+        <span v-if="activeAsset?.page !== undefined">• Page {{ activeAsset.page }}</span>
+        <span v-if="activeAsset?.layers?.length">• Layers: {{ activeAsset.layers.join(", ") }}</span>
+      </div>
+      <a
+        v-if="hasAsset && activeAsset?.url"
+        :href="activeAsset.url"
+        target="_blank"
+        rel="noopener"
+        class="underline"
+      >
+        Open full size
+      </a>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.touch-none {
+  touch-action: none;
+}
+</style>

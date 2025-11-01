@@ -45,6 +45,8 @@ const maxZoom = 6
 const zoomStep = 0.2
 const translate = ref({ x: 0, y: 0 })
 
+const defaultViewportFill = 0.7
+
 const panOrigin = ref({ x: 0, y: 0 })
 const pointerStart = ref({ x: 0, y: 0 })
 const isPanning = ref(false)
@@ -61,6 +63,8 @@ const activeView = computed(() => props.views.find((view) => view.id === activeV
 const activeAsset = computed(() => activeView.value?.asset)
 
 const hasAsset = computed(() => Boolean(activeAsset.value?.url && !activeAsset.value.placeholder && !assetError.value))
+const isLayoutView = computed(() => activeView.value?.id?.startsWith("pcb"))
+const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
 
 watch(
   () => props.views,
@@ -126,9 +130,29 @@ function adjustZoom(direction: 1 | -1) {
 }
 
 function resetView(skipZoomReset = false) {
-  if (!skipZoomReset) zoom.value = 1
+  if (!skipZoomReset) zoom.value = computeInitialZoom()
   translate.value = { x: 0, y: 0 }
   nextTick(() => updateAssetBounds())
+}
+
+function computeInitialZoom() {
+  if (!contentRef.value || !imageRef.value) return 1
+
+  const { width: viewportWidth, height: viewportHeight } = contentRef.value.getBoundingClientRect()
+  if (!viewportWidth || !viewportHeight) return 1
+
+  const naturalWidth = imageRef.value.naturalWidth || imageRef.value.width
+  const naturalHeight = imageRef.value.naturalHeight || imageRef.value.height
+  if (!naturalWidth || !naturalHeight) return 1
+
+  const widthScale = (viewportWidth * defaultViewportFill) / naturalWidth
+  const heightScale = (viewportHeight * defaultViewportFill) / naturalHeight
+  const scale = Math.min(widthScale, heightScale)
+
+  if (!Number.isFinite(scale) || scale <= 0) return 1
+
+  const clamped = Math.min(maxZoom, Math.max(minZoom, scale))
+  return Number(clamped.toFixed(2))
 }
 
 function handleWheel(event: WheelEvent) {
@@ -182,7 +206,8 @@ function handlePointerLeave(event: PointerEvent) {
 
 function handleAssetLoad() {
   isAssetLoaded.value = true
-  updateAssetBounds()
+  zoom.value = computeInitialZoom()
+  nextTick(() => updateAssetBounds())
 }
 
 function handleAssetError() {
@@ -266,6 +291,7 @@ function updateAssetBounds() {
           class="relative h-[520px] touch-none select-none"
           :class="hasAsset ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
           "
+          :style="layoutBackgroundStyle"
           @wheel.prevent="handleWheel"
           @pointerdown="handlePointerDown"
           @pointermove="handlePointerMove"
@@ -298,21 +324,24 @@ function updateAssetBounds() {
                 <div
                   v-else
                   class="relative max-h-[70vh] max-w-[80vw]"
+                  :style="layoutBackgroundStyle"
                 >
                   <img
                     ref="imageRef"
                     :key="activeAsset?.url ?? activeAsset?.path"
                     :src="activeAsset?.url ?? ''"
                     :alt="activeAsset?.title ?? activeAsset?.filename ?? 'Preview asset'"
+                    draggable="false"
+                    @dragstart.prevent
                     loading="lazy"
                     decoding="async"
-                    class="max-h-[70vh] max-w-[80vw] rounded-md shadow-sm"
+                    class="max-h-[70vh] max-w-[80vw]"
                     @load="handleAssetLoad"
                     @error="handleAssetError"
                   />
                   <div
                     v-if="!isAssetLoaded"
-                    class="absolute inset-0 animate-pulse rounded-md bg-muted/50"
+                    class="absolute inset-0 animate-pulse bg-muted/50"
                   />
                   <div class="pointer-events-none absolute inset-0">
                     <slot

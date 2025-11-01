@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { Button } from "~/components/ui/button"
 import type { PreviewAsset } from "~/types/api/projects"
@@ -15,15 +15,26 @@ const props = withDefaults(
   defineProps<{
     views: ViewerView[]
     initialViewId?: string
+    interactionMode?: "pan" | "pin"
   }>(),
   {
     views: () => [],
     initialViewId: undefined,
+    interactionMode: "pan",
   },
 )
 
 const emit = defineEmits<{
   viewChange: [viewId: string]
+  canvasClick: [
+    {
+      viewId: string
+      relativeX: number
+      relativeY: number
+      clientX: number
+      clientY: number
+    },
+  ]
 }>()
 
 const activeViewId = ref<string | null>(null)
@@ -40,9 +51,11 @@ const isPanning = ref(false)
 const activePointerId = ref<number | null>(null)
 
 const contentRef = ref<HTMLDivElement | null>(null)
+const imageRef = ref<HTMLImageElement | null>(null)
 
 const isAssetLoaded = ref(false)
 const assetError = ref<string | null>(null)
+const assetBounds = ref<DOMRect | null>(null)
 
 const activeView = computed(() => props.views.find((view) => view.id === activeViewId.value) ?? props.views[0])
 const activeAsset = computed(() => activeView.value?.asset)
@@ -82,9 +95,24 @@ watch(
     isAssetLoaded.value = false
     nextTick(() => {
       resetView(true)
+      updateAssetBounds()
     })
   },
 )
+
+watch([zoom, () => translate.value.x, () => translate.value.y], () => {
+  nextTick(() => {
+    updateAssetBounds()
+  })
+})
+
+onMounted(() => {
+  window.addEventListener("resize", updateAssetBounds)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", updateAssetBounds)
+})
 
 function setActiveView(viewId: string) {
   if (activeViewId.value === viewId) return
@@ -94,15 +122,17 @@ function setActiveView(viewId: string) {
 function adjustZoom(direction: 1 | -1) {
   const nextZoom = Number((zoom.value + direction * zoomStep).toFixed(2))
   zoom.value = Math.min(maxZoom, Math.max(minZoom, nextZoom))
+  updateAssetBounds()
 }
 
 function resetView(skipZoomReset = false) {
   if (!skipZoomReset) zoom.value = 1
   translate.value = { x: 0, y: 0 }
+  nextTick(() => updateAssetBounds())
 }
 
 function handleWheel(event: WheelEvent) {
-  if (!contentRef.value) return
+  if (!contentRef.value || props.interactionMode !== "pan") return
   event.preventDefault()
 
   const delta = Math.sign(event.deltaY)
@@ -110,6 +140,7 @@ function handleWheel(event: WheelEvent) {
 }
 
 function handlePointerDown(event: PointerEvent) {
+  if (props.interactionMode !== "pan") return
   if (event.pointerType === "touch") event.preventDefault()
   if (!contentRef.value || isPanning.value) return
 
@@ -121,6 +152,7 @@ function handlePointerDown(event: PointerEvent) {
 }
 
 function handlePointerMove(event: PointerEvent) {
+  if (props.interactionMode !== "pan") return
   if (!isPanning.value || activePointerId.value !== event.pointerId) return
   event.preventDefault()
 
@@ -134,6 +166,7 @@ function handlePointerMove(event: PointerEvent) {
 }
 
 function handlePointerUp(event: PointerEvent) {
+  if (props.interactionMode !== "pan") return
   if (!isPanning.value || activePointerId.value !== event.pointerId) return
 
   isPanning.value = false
@@ -142,16 +175,50 @@ function handlePointerUp(event: PointerEvent) {
 }
 
 function handlePointerLeave(event: PointerEvent) {
+  if (props.interactionMode !== "pan") return
   if (!isPanning.value || activePointerId.value !== event.pointerId) return
   handlePointerUp(event)
 }
 
 function handleAssetLoad() {
   isAssetLoaded.value = true
+  updateAssetBounds()
 }
 
 function handleAssetError() {
   assetError.value = "Failed to load asset"
+}
+
+function handleCanvasClick(event: MouseEvent) {
+  if (props.interactionMode !== "pin") return
+  if (!imageRef.value || !activeView.value) return
+
+  const rect = assetBounds.value ?? imageRef.value.getBoundingClientRect()
+  if (rect.width === 0 || rect.height === 0) return
+
+  const relativeX = (event.clientX - rect.left) / rect.width
+  const relativeY = (event.clientY - rect.top) / rect.height
+
+  if (relativeX < 0 || relativeX > 1 || relativeY < 0 || relativeY > 1) {
+    return
+  }
+
+  emit("canvasClick", {
+    viewId: activeView.value.id,
+    relativeX,
+    relativeY,
+    clientX: event.clientX,
+    clientY: event.clientY,
+  })
+}
+
+function updateAssetBounds() {
+  if (!imageRef.value) {
+    assetBounds.value = null
+    return
+  }
+  const rect = imageRef.value.getBoundingClientRect()
+  assetBounds.value = new DOMRect(rect.x, rect.y, rect.width, rect.height)
 }
 </script>
 
@@ -206,6 +273,7 @@ function handleAssetError() {
           @pointercancel="handlePointerUp"
           @pointerleave="handlePointerLeave"
           @dblclick.prevent="resetView()"
+          @click="handleCanvasClick"
         >
           <div
             class="absolute left-1/2 top-1/2 flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-center"
@@ -232,6 +300,7 @@ function handleAssetError() {
                   class="relative max-h-[70vh] max-w-[80vw]"
                 >
                   <img
+                    ref="imageRef"
                     :key="activeAsset?.url ?? activeAsset?.path"
                     :src="activeAsset?.url ?? ''"
                     :alt="activeAsset?.title ?? activeAsset?.filename ?? 'Preview asset'"
@@ -245,6 +314,14 @@ function handleAssetError() {
                     v-if="!isAssetLoaded"
                     class="absolute inset-0 animate-pulse rounded-md bg-muted/50"
                   />
+                  <div class="pointer-events-none absolute inset-0">
+                    <slot
+                      name="overlay"
+                      :view="activeView"
+                      :asset="activeAsset"
+                      :image-bounds="assetBounds"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

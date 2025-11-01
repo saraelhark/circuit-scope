@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import Select, func, select
@@ -62,9 +62,15 @@ async def create_project(
     if upload_file is not None:
         filename = upload_file.filename
         if not filename:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file must have a name")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded file must have a name",
+            )
         if not filename.lower().endswith(".zip"):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only KiCad ZIP archives are supported")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only KiCad ZIP archives are supported",
+            )
 
         storage_path = f"projects/{project.id}/{filename}"
         try:
@@ -92,7 +98,9 @@ async def create_project(
         await session.commit()
     except IntegrityError as exc:  # noqa: ASYNC100
         await session.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create project") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create project"
+        ) from exc
 
     await session.refresh(project, attribute_names=["files"])
     return ProjectResponse.model_validate(project, from_attributes=True), upload_result
@@ -107,9 +115,16 @@ async def list_projects(
     owner_id: UUID | None = None,
 ) -> ProjectListResponse:
     if page < 1 or size < 1:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid pagination parameters")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid pagination parameters",
+        )
 
-    query: Select[tuple[Project]] = select(Project).options(selectinload(Project.files)).order_by(Project.created_at.desc())
+    query: Select[tuple[Project]] = (
+        select(Project)
+        .options(selectinload(Project.files))
+        .order_by(Project.created_at.desc())
+    )
 
     if only_public is not None:
         query = query.where(Project.is_public.is_(only_public))
@@ -128,7 +143,10 @@ async def list_projects(
     projects = project_result.scalars().all()
 
     return ProjectListResponse(
-        items=[ProjectResponse.model_validate(project, from_attributes=True) for project in projects],
+        items=[
+            ProjectResponse.model_validate(project, from_attributes=True)
+            for project in projects
+        ],
         total=total,
         page=page,
         size=size,
@@ -147,7 +165,9 @@ async def update_project(
 ) -> ProjectResponse:
     project = await _get_project_model(session, project_id)
 
-    for field, value in payload.model_dump(exclude_unset=True, exclude_none=True).items():
+    for field, value in payload.model_dump(
+        exclude_unset=True, exclude_none=True
+    ).items():
         setattr(project, field, value)
 
     await session.commit()
@@ -182,5 +202,7 @@ async def _get_project_model(session: AsyncSession, project_id: UUID) -> Project
     )
     project = result.scalar_one_or_none()
     if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
     return project

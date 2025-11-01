@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
-from backend.db.models import Base
+from db.models import Base
 from app.core.config import settings
 
 # this is the Alembic Config object, which provides

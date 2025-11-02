@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
-import { Button } from "~/components/ui/button"
 import type { PreviewAsset } from "~/types/api/projects"
 
 export type ViewerView = {
@@ -16,6 +15,7 @@ const props = withDefaults(
     views: ViewerView[]
     initialViewId?: string
     interactionMode?: "pan" | "pin"
+    showControls?: boolean
   }>(),
   {
     views: () => [],
@@ -245,11 +245,12 @@ function updateAssetBounds() {
   const rect = imageRef.value.getBoundingClientRect()
   assetBounds.value = new DOMRect(rect.x, rect.y, rect.width, rect.height)
 }
+defineExpose({ adjustZoom, resetView })
 </script>
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <div v-if="showControls !== false" class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap gap-2">
         <button v-for="view in views" :key="view.id" type="button"
           class="rounded-md border px-3 py-1 text-sm transition" :class="view.id === activeView?.id

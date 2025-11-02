@@ -251,16 +251,10 @@ function updateAssetBounds() {
   <div class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap gap-2">
-        <button
-          v-for="view in views"
-          :key="view.id"
-          type="button"
-          class="rounded-md border px-3 py-1 text-sm transition"
-          :class="view.id === activeView?.id
+        <button v-for="view in views" :key="view.id" type="button"
+          class="rounded-md border px-3 py-1 text-sm transition" :class="view.id === activeView?.id
             ? 'border-primary bg-primary/10 text-primary'
-            : 'border-border text-muted-foreground hover:bg-muted'"
-          @click="setActiveView(view.id)"
-        >
+            : 'border-border text-muted-foreground hover:bg-muted'" @click="setActiveView(view.id)">
           {{ view.label }}
         </button>
       </div>
@@ -278,78 +272,37 @@ function updateAssetBounds() {
       </div>
     </div>
 
-    <div
-      ref="containerRef"
-      class="relative overflow-hidden rounded-lg border bg-background"
-    >
+    <div ref="containerRef" class="relative overflow-hidden rounded-lg border bg-background">
       <div v-if="!views.length" class="flex h-[520px] items-center justify-center text-sm text-muted-foreground">
         No views available.
       </div>
       <template v-else>
-        <div
-          ref="contentRef"
-          class="relative h-[520px] touch-none select-none"
-          :class="hasAsset ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-          "
-          :style="layoutBackgroundStyle"
-          @wheel.prevent="handleWheel"
-          @pointerdown="handlePointerDown"
-          @pointermove="handlePointerMove"
-          @pointerup="handlePointerUp"
-          @pointercancel="handlePointerUp"
-          @pointerleave="handlePointerLeave"
-          @dblclick.prevent="resetView()"
-          @click="handleCanvasClick"
-        >
+        <div ref="contentRef" class="relative h-[520px] touch-none select-none" :class="hasAsset ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+          " :style="layoutBackgroundStyle" @wheel.prevent="handleWheel" @pointerdown="handlePointerDown"
+          @pointermove="handlePointerMove" @pointerup="handlePointerUp" @pointercancel="handlePointerUp"
+          @pointerleave="handlePointerLeave" @dblclick.prevent="resetView()" @click="handleCanvasClick">
           <div
-            class="absolute left-1/2 top-1/2 flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-          >
-            <div
-              class="transition-transform duration-75 ease-out"
-              :style="{
-                transform: `translate(${translate.x}px, ${translate.y}px) scale(${zoom})`,
-              }"
-            >
+            class="absolute left-1/2 top-1/2 flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+            <div class="transition-transform duration-75 ease-out" :style="{
+              transform: `translate(${translate.x}px, ${translate.y}px) scale(${zoom})`,
+            }">
               <div class="relative flex items-center justify-center">
-                <div
-                  v-if="!hasAsset"
-                  class="flex h-[420px] w-[720px] max-w-[85vw] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-center text-sm text-muted-foreground"
-                >
+                <div v-if="!hasAsset"
+                  class="flex h-[420px] w-[720px] max-w-[85vw] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
                   <p>{{ assetError ?? activeView?.fallbackMessage ?? "No asset available for this view." }}</p>
                   <p v-if="activeAsset?.placeholder" class="text-xs text-muted-foreground">
                     Placeholder generated during processing.
                   </p>
                 </div>
 
-                <div
-                  v-else
-                  class="relative max-h-[70vh] max-w-[80vw]"
-                  :style="layoutBackgroundStyle"
-                >
-                  <img
-                    ref="imageRef"
-                    :key="activeAsset?.url ?? activeAsset?.path"
-                    :src="activeAsset?.url ?? ''"
-                    :alt="activeAsset?.title ?? activeAsset?.filename ?? 'Preview asset'"
-                    draggable="false"
-                    @dragstart.prevent
-                    loading="lazy"
-                    decoding="async"
-                    class="max-h-[70vh] max-w-[80vw]"
-                    @load="handleAssetLoad"
-                    @error="handleAssetError"
-                  />
-                  <div
-                    v-if="!isAssetLoaded"
-                    class="absolute inset-0 animate-pulse bg-muted/50"
-                  />
+                <div v-else class="relative max-h-[70vh] max-w-[80vw]" :style="layoutBackgroundStyle">
+                  <img ref="imageRef" :key="activeAsset?.url ?? activeAsset?.path" :src="activeAsset?.url ?? ''"
+                    :alt="activeAsset?.title ?? activeAsset?.filename ?? 'Preview asset'" draggable="false"
+                    @dragstart.prevent loading="lazy" decoding="async" class="max-h-[70vh] max-w-[80vw]"
+                    @load="handleAssetLoad" @error="handleAssetError" />
+                  <div v-if="!isAssetLoaded" class="absolute inset-0 animate-pulse bg-muted/50" />
                   <div class="pointer-events-none absolute inset-0">
-                    <slot
-                      name="overlay"
-                      :view="activeView"
-                      :asset="activeAsset"
-                      :image-bounds="assetBounds"
-                    />
+                    <slot name="overlay" :view="activeView" :asset="activeAsset" :image-bounds="assetBounds" />
                   </div>
                 </div>
               </div>
@@ -366,15 +319,6 @@ function updateAssetBounds() {
         <span v-if="activeAsset?.page !== undefined">• Page {{ activeAsset.page }}</span>
         <span v-if="activeAsset?.layers?.length">• Layers: {{ activeAsset.layers.join(", ") }}</span>
       </div>
-      <a
-        v-if="hasAsset && activeAsset?.url"
-        :href="activeAsset.url"
-        target="_blank"
-        rel="noopener"
-        class="underline"
-      >
-        Open full size
-      </a>
     </div>
   </div>
 </template>

@@ -13,7 +13,6 @@ import {
 import { Input } from "~/components/ui/input"
 import { Textarea } from "~/components/ui/textarea"
 import { formatDateTime } from "~/lib/formatters"
-import { normaliseStatus, statusVariant, visibilityLabel } from "~/lib/projects"
 import ProjectAssetViewer, { type ViewerView } from "~/components/projects/ProjectAssetViewer.vue"
 import type { AnnotationTool, CommentThread, ThreadAnnotation } from "~/types/api/commentThreads"
 import type { Project, ProjectPreviewResponse } from "~/types/api/projects"
@@ -46,6 +45,15 @@ const { data, error, refresh, status } = useAsyncData<Project>(
 )
 
 const project = computed(() => data.value)
+
+const projectStatusLabel = computed(() => {
+  const status = project.value?.status
+  return status && status.toLowerCase() === "closed" ? "Closed" : "Open"
+})
+
+const projectStatusVariant = computed(() =>
+  projectStatusLabel.value === "Closed" ? "secondary" : "success",
+)
 
 const { data: previewData, status: previewStatus } = useAsyncData<ProjectPreviewResponse>(
   `project-${projectId.value}-previews`,
@@ -429,20 +437,20 @@ async function submitNewThread() {
     pendingPin.value.tool === "pin"
       ? null
       : {
-          tool: pendingPin.value.tool,
-          data: {
-            ...(pendingPin.value.data ?? {}),
-            ...(pendingPin.value.tool === "circle"
-              ? { radius: Number(circleRadius.value.toFixed(4)) }
-              : {}),
-            ...(pendingPin.value.tool === "arrow" && pendingArrowTarget.value
-              ? {
-                  target_x: pendingArrowTarget.value.x,
-                  target_y: pendingArrowTarget.value.y,
-                }
-              : {}),
-          },
-        }
+        tool: pendingPin.value.tool,
+        data: {
+          ...(pendingPin.value.data ?? {}),
+          ...(pendingPin.value.tool === "circle"
+            ? { radius: Number(circleRadius.value.toFixed(4)) }
+            : {}),
+          ...(pendingPin.value.tool === "arrow" && pendingArrowTarget.value
+            ? {
+              target_x: pendingArrowTarget.value.x,
+              target_y: pendingArrowTarget.value.y,
+            }
+            : {}),
+        },
+      }
 
   const payload = {
     view_id: pendingPin.value.viewId,
@@ -509,23 +517,6 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
 
 <template>
   <div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-      <div class="space-y-1">
-        <Button variant="ghost" class="-ml-2 text-sm" @click="goBack">
-          ← Back
-        </Button>
-        <h1 class="text-3xl font-semibold tracking-tight">Project details</h1>
-        <p class="text-muted-foreground">Review the project's metadata and uploaded files.</p>
-      </div>
-
-      <div v-if="project" class="flex items-center gap-2">
-        <Badge :variant="statusVariant(project.status)">
-          {{ normaliseStatus(project.status) }}
-        </Badge>
-        <span class="text-sm text-muted-foreground">Updated {{ formatDateTime(project.updated_at) }}</span>
-      </div>
-    </div>
-
     <Card v-if="error">
       <CardHeader>
         <CardTitle class="text-xl">Failed to load project</CardTitle>
@@ -551,34 +542,34 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
       <div v-else class="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <Card class="lg:col-span-2">
           <CardHeader>
-            <CardTitle class="text-2xl">{{ project.name }}</CardTitle>
-            <CardDescription v-if="project.description" class="max-w-prose">
-              {{ project.description }}
-            </CardDescription>
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div class="space-y-2">
+                <CardTitle class="text-2xl">{{ project.name }}</CardTitle>
+                <CardDescription v-if="project.description" class="max-w-prose">
+                  {{ project.description }}
+                </CardDescription>
+              </div>
+              <div class="flex flex-col items-start gap-2 text-sm sm:items-end">
+                <Badge :variant="projectStatusVariant">
+                  {{ projectStatusLabel }}
+                </Badge>
+                <span class="text-muted-foreground">
+                  Uploaded {{ formatDateTime(project.created_at) }}
+                </span>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent class="grid gap-4 sm:grid-cols-2">
-            <div class="space-y-2">
-              <p class="text-sm text-muted-foreground">
-                <span class="font-medium text-foreground">Owner:</span>
-                {{ project.owner_id }}
-              </p>
-              <p class="text-sm text-muted-foreground">
-                <span class="font-medium text-foreground">Visibility:</span>
-                {{ visibilityLabel(project) }}
-              </p>
-            </div>
-            <div class="space-y-2">
-              <p v-if="project.github_repo_url" class="text-sm text-muted-foreground">
-                <span class="font-medium text-foreground">GitHub:</span>
-                <a class="underline" :href="project.github_repo_url" target="_blank" rel="noopener">
-                  {{ project.github_repo_url }}
-                </a>
-              </p>
-              <p v-if="project.secret_link" class="text-sm text-muted-foreground break-all">
-                <span class="font-medium text-foreground">Secret link:</span>
-                {{ project.secret_link }}
-              </p>
-            </div>
+          <CardContent v-if="project.github_repo_url || project.secret_link" class="flex flex-col gap-2">
+            <p v-if="project.github_repo_url" class="text-sm text-muted-foreground">
+              <span class="font-medium text-foreground">GitHub:</span>
+              <a class="underline" :href="project.github_repo_url" target="_blank" rel="noopener">
+                {{ project.github_repo_url }}
+              </a>
+            </p>
+            <p v-if="project.secret_link" class="text-sm text-muted-foreground break-all">
+              <span class="font-medium text-foreground">Secret link:</span>
+              {{ project.secret_link }}
+            </p>
           </CardContent>
         </Card>
 
@@ -596,100 +587,56 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
             </div>
             <div v-else class="space-y-6">
               <div class="grid gap-6 lg:grid-cols-[3fr_2fr]">
-                <ProjectAssetViewer
-                  :views="viewerViews"
-                  :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'"
-                  :interaction-mode="interactionMode"
-                  @view-change="setActiveView"
-                  @canvas-click="handleCanvasClick"
-                >
+                <ProjectAssetViewer :views="viewerViews" :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'"
+                  :interaction-mode="interactionMode" @view-change="setActiveView" @canvas-click="handleCanvasClick">
                   <template #overlay="{ view }">
-                    <svg
-                      class="pointer-events-none absolute inset-0 h-full w-full"
-                      viewBox="0 0 100 100"
-                      preserveAspectRatio="none"
-                    >
+                    <svg class="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100"
+                      preserveAspectRatio="none">
                       <template v-for="item in overlayItemsByView[view.id] ?? []" :key="`${item.thread.id}-arrow`">
                         <template v-if="item.arrow">
-                          <line
-                            :x1="item.thread.pin_x * 100"
-                            :y1="item.thread.pin_y * 100"
-                            :x2="item.arrow.target_x * 100"
-                            :y2="item.arrow.target_y * 100"
-                            :stroke="threadStrokeColor(item.thread)"
-                            stroke-width="0.8"
-                            stroke-linecap="round"
-                          />
-                          <circle
-                            :cx="item.arrow.target_x * 100"
-                            :cy="item.arrow.target_y * 100"
-                            r="1.2"
-                            :fill="threadStrokeColor(item.thread)"
-                          />
+                          <line :x1="item.thread.pin_x * 100" :y1="item.thread.pin_y * 100"
+                            :x2="item.arrow.target_x * 100" :y2="item.arrow.target_y * 100"
+                            :stroke="threadStrokeColor(item.thread)" stroke-width="0.8" stroke-linecap="round" />
+                          <circle :cx="item.arrow.target_x * 100" :cy="item.arrow.target_y * 100" r="1.2"
+                            :fill="threadStrokeColor(item.thread)" />
                         </template>
                       </template>
-                      <template
-                        v-if="
-                          pendingPin &&
-                          pendingPin.viewId === view.id &&
-                          pendingPin.tool === 'arrow' &&
-                          pendingArrowTarget
-                        "
-                      >
-                        <line
-                          :x1="pendingPin.x * 100"
-                          :y1="pendingPin.y * 100"
-                          :x2="pendingArrowTarget.x * 100"
-                          :y2="pendingArrowTarget.y * 100"
-                          :stroke="pendingStrokeColor"
-                          stroke-dasharray="2 2"
-                          stroke-width="0.8"
-                          stroke-linecap="round"
-                        />
-                        <circle
-                          :cx="pendingArrowTarget.x * 100"
-                          :cy="pendingArrowTarget.y * 100"
-                          r="1.2"
-                          :fill="pendingStrokeColor"
-                        />
+                      <template v-if="
+                        pendingPin &&
+                        pendingPin.viewId === view.id &&
+                        pendingPin.tool === 'arrow' &&
+                        pendingArrowTarget
+                      ">
+                        <line :x1="pendingPin.x * 100" :y1="pendingPin.y * 100" :x2="pendingArrowTarget.x * 100"
+                          :y2="pendingArrowTarget.y * 100" :stroke="pendingStrokeColor" stroke-dasharray="2 2"
+                          stroke-width="0.8" stroke-linecap="round" />
+                        <circle :cx="pendingArrowTarget.x * 100" :cy="pendingArrowTarget.y * 100" r="1.2"
+                          :fill="pendingStrokeColor" />
                       </template>
                     </svg>
 
                     <template v-for="item in overlayItemsByView[view.id] ?? []" :key="item.thread.id">
-                      <div
-                        v-if="circleStyle(item.thread, item.circle)"
-                        class="pointer-events-none absolute rounded-full border-2"
-                        :class="
-                          item.thread.id === activeThreadId
+                      <div v-if="circleStyle(item.thread, item.circle)"
+                        class="pointer-events-none absolute rounded-full border-2" :class="item.thread.id === activeThreadId
                             ? 'border-primary/80'
                             : item.thread.is_resolved
                               ? 'border-border'
                               : 'border-amber-400/80'
-                        "
-                        :style="circleStyle(item.thread, item.circle)"
-                      />
+                          " :style="circleStyle(item.thread, item.circle)" />
                       <div
                         class="pointer-events-none absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-xs font-semibold transition-colors"
-                        :class="threadPinClasses(item.thread)"
-                        :style="threadPositionStyle(item.thread)"
-                      >
+                        :class="threadPinClasses(item.thread)" :style="threadPositionStyle(item.thread)">
                         {{ threadLabel(item.thread.id) }}
                       </div>
                     </template>
 
-                    <div
-                      v-if="pendingPin && pendingPin.viewId === view.id"
-                      class="pointer-events-none absolute"
-                    >
-                      <div
-                        v-if="pendingPin.tool === 'circle' && pendingCircleStyle"
+                    <div v-if="pendingPin && pendingPin.viewId === view.id" class="pointer-events-none absolute">
+                      <div v-if="pendingPin.tool === 'circle' && pendingCircleStyle"
                         class="pointer-events-none absolute rounded-full border-2 border-dashed"
-                        :style="pendingCircleStyle"
-                      />
+                        :style="pendingCircleStyle" />
                       <div
                         class="pointer-events-none absolute flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-dashed bg-primary/10 text-xs font-semibold text-primary"
-                        :style="pendingPinStyle"
-                      >
+                        :style="pendingPinStyle">
                         +
                       </div>
                     </div>
@@ -704,61 +651,45 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
                         <Button size="sm" variant="outline" @click="startPinPlacement">
                           Drop pin
                         </Button>
-                        <Button
-                          v-if="pendingPin"
-                          size="sm"
-                          variant="ghost"
-                          class="text-muted-foreground"
-                          @click="cancelPendingPin"
-                        >
+                        <Button v-if="pendingPin" size="sm" variant="ghost" class="text-muted-foreground"
+                          @click="cancelPendingPin">
                           Cancel
                         </Button>
                       </div>
                     </div>
 
                     <div class="flex flex-wrap gap-2">
-                      <button
-                        v-for="tool in toolOptions"
-                        :key="tool.value"
-                        type="button"
+                      <button v-for="tool in toolOptions" :key="tool.value" type="button"
                         class="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors"
-                        :class="
-                          selectedTool === tool.value
+                        :class="selectedTool === tool.value
                             ? 'border-primary bg-primary text-primary-foreground'
                             : 'border-border bg-background hover:border-primary/60'
-                        "
-                        @click="selectTool(tool.value)"
-                      >
+                          " @click="selectTool(tool.value)">
                         {{ tool.label }}
                       </button>
                     </div>
 
-                    <div
-                      v-if="selectedTool === 'circle'"
-                      class="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-xs"
-                    >
+                    <div v-if="selectedTool === 'circle'"
+                      class="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-xs">
                       <span class="font-medium text-muted-foreground">Circle radius</span>
-                      <input
-                        v-model.number="circleRadius"
-                        type="range"
-                        min="0.02"
-                        max="0.25"
-                        step="0.01"
-                        class="h-2 w-32 rounded-lg bg-muted"
-                      />
+                      <input v-model.number="circleRadius" type="range" min="0.02" max="0.25" step="0.01"
+                        class="h-2 w-32 rounded-lg bg-muted" />
                       <span class="text-muted-foreground">{{ circleRadiusPercent }}%</span>
                     </div>
                   </div>
 
-                  <p v-if="isPlacingPin" class="rounded-md border border-dashed border-primary/40 bg-primary/5 p-3 text-sm">
+                  <p v-if="isPlacingPin"
+                    class="rounded-md border border-dashed border-primary/40 bg-primary/5 p-3 text-sm">
                     Click on the canvas to choose where this comment should go.
                   </p>
 
-                  <div v-if="formError" class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  <div v-if="formError"
+                    class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                     {{ formError }}
                   </div>
 
-                  <form v-if="pendingPin" class="space-y-3 rounded-md border bg-card p-3" @submit.prevent="submitNewThread">
+                  <form v-if="pendingPin" class="space-y-3 rounded-md border bg-card p-3"
+                    @submit.prevent="submitNewThread">
                     <p class="text-sm text-muted-foreground">
                       New thread on <span class="font-medium">{{ pendingPin.viewId }}</span>
                     </p>
@@ -783,7 +714,8 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
                     </div>
                   </form>
 
-                  <div class="min-h-[180px] space-y-3 overflow-y-auto pr-1" :class="{ 'opacity-70': threadStatusComputed === 'pending' }">
+                  <div class="min-h-[180px] space-y-3 overflow-y-auto pr-1"
+                    :class="{ 'opacity-70': threadStatusComputed === 'pending' }">
                     <p v-if="threadStatusComputed === 'pending'" class="text-sm text-muted-foreground">
                       Loading comments…
                     </p>
@@ -792,20 +724,12 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
                       No comments yet. Drop a pin to start the first thread.
                     </p>
 
-                    <div
-                      v-for="thread in threads"
-                      :key="thread.id"
-                      class="rounded-md border p-3 text-sm"
-                      :class="{
-                        'border-primary bg-primary/5': thread.id === activeThreadId,
-                        'opacity-60': thread.is_resolved,
-                      }"
-                    >
-                      <button
-                        type="button"
-                        class="flex w-full items-center justify-between text-left"
-                        @click="activeThreadId = thread.id"
-                      >
+                    <div v-for="thread in threads" :key="thread.id" class="rounded-md border p-3 text-sm" :class="{
+                      'border-primary bg-primary/5': thread.id === activeThreadId,
+                      'opacity-60': thread.is_resolved,
+                    }">
+                      <button type="button" class="flex w-full items-center justify-between text-left"
+                        @click="activeThreadId = thread.id">
                         <div>
                           <p class="font-medium">Pin #{{ threadLabel(thread.id) }} · {{ thread.view_id }}</p>
                           <p class="text-xs text-muted-foreground">
@@ -819,7 +743,8 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
                         <div v-for="comment in thread.comments" :key="comment.id" class="space-y-1">
                           <p class="text-xs font-semibold">
                             {{ comment.guest_name ?? 'Guest' }}
-                            <span class="ml-2 text-[11px] text-muted-foreground">{{ formatDateTime(comment.created_at) }}</span>
+                            <span class="ml-2 text-[11px] text-muted-foreground">{{ formatDateTime(comment.created_at)
+                              }}</span>
                           </p>
                           <p class="text-sm leading-relaxed">{{ comment.content }}</p>
                         </div>
@@ -830,7 +755,8 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
                           </Button>
                         </div>
 
-                        <div v-if="replyError" class="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                        <div v-if="replyError"
+                          class="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
                           {{ replyError }}
                         </div>
 
@@ -842,7 +768,8 @@ const isPlacingPin = computed(() => interactionMode.value === "pin" || pendingPi
                             </label>
                             <label class="flex flex-col gap-1">
                               <span class="font-medium">Email</span>
-                              <Input v-model="replyForm.guestEmail" placeholder="you@example.com" size="sm" type="email" />
+                              <Input v-model="replyForm.guestEmail" placeholder="you@example.com" size="sm"
+                                type="email" />
                             </label>
                             <label class="flex flex-col gap-1">
                               <span class="font-medium">Reply</span>

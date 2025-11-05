@@ -7,6 +7,7 @@ export type ViewerView = {
   label: string
   asset?: PreviewAsset | null
   fallbackMessage?: string
+  pages?: PreviewAsset[]
 }
 
 export type CircleViewerAnnotation = {

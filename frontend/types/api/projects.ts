@@ -42,6 +42,11 @@ export interface PreviewAsset {
   filename: string
   title?: string
   page?: number
+  page_count?: number
+  pages?: PreviewAsset[]
+  multi_page?: boolean
+  sources?: string[]
+  composed?: PreviewAsset
   layers?: string[]
   placeholder?: boolean
   path?: string

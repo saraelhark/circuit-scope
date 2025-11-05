@@ -39,6 +39,7 @@ const { data: previewData } = useAsyncData<ProjectPreviewResponse>(
 const previews = computed(() => previewData.value)
 
 const schematics = computed(() => previews.value?.schematics ?? [])
+const schematicPages = computed(() => schematics.value.flatMap((bundle) => bundle.pages ?? []))
 const layouts = computed(() => previews.value?.layouts ?? [])
 
 const viewerViews = computed<ViewerView[]>(() => {
@@ -49,6 +50,7 @@ const viewerViews = computed<ViewerView[]>(() => {
             id: "schematic",
             label: "Schematic",
             asset: schematics.value[0],
+            pages: schematicPages.value,
             fallbackMessage: "No schematic SVG generated yet.",
         })
     } else {

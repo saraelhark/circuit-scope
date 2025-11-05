@@ -4,8 +4,18 @@ from __future__ import annotations
 
 import logging
 from uuid import UUID
+from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -132,7 +142,18 @@ async def get_project_previews_endpoint(
             if asset_path
             else None
         )
-        return {**entry, "url": url}
+
+        enriched = {**entry, "url": url}
+
+        pages = entry.get("pages")
+        if isinstance(pages, list):
+            enriched["pages"] = [build_asset_entry(page) for page in pages]
+
+        composed = entry.get("composed")
+        if isinstance(composed, dict):
+            enriched["composed"] = build_asset_entry(composed)
+
+        return enriched
 
     schematics = [build_asset_entry(entry) for entry in index.get("schematics", [])]
     layouts = [build_asset_entry(entry) for entry in index.get("layouts", [])]
@@ -158,13 +179,20 @@ async def get_project_preview_asset(
     try:
         fs_path = preview_asset_filesystem_path(storage, project_id, asset_path)
     except FileNotFoundError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preview not available")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Preview not available"
+        )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to resolve preview asset for project %s", project_id)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to load preview") from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to load preview",
+        ) from exc
 
     media_type = _MEDIA_TYPES.get(fs_path.suffix.lower())
     if media_type is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unsupported preview format")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Unsupported preview format"
+        )
 
     return FileResponse(fs_path, media_type=media_type)

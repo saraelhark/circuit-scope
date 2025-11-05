@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 import shutil
 import subprocess
 import tempfile
 import unicodedata
 import zipfile
+from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
+from xml.etree import ElementTree as ET
 from uuid import UUID
 
 from app.core.config import settings
@@ -29,6 +33,135 @@ _SAFE_SOURCE_SUFFIXES: Final = {".kicad_sch", ".kicad_pcb", ".kicad_pro", ".kica
 _PLACEHOLDER_SVG_TEMPLATE: Final = (
     """<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"640\" height=\"480\" viewBox=\"0 0 640 480\">\n  <defs>\n    <style>\n      .bg {{ fill: #101828; }}\n      .frame {{ fill: none; stroke: #2563eb; stroke-width: 4; stroke-dasharray: 16 12; }}\n      .label {{ fill: #f8fafc; font: 24px/1.4 \"SFMono-Regular\", Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace; }}\n      .subtitle {{ fill: #cbd5f5; font: 16px/1.4 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; }}\n    </style>\n  </defs>\n  <rect class=\"bg\" x=\"0\" y=\"0\" width=\"640\" height=\"480\" rx=\"18\"/>\n  <rect class=\"frame\" x=\"36\" y=\"48\" width=\"568\" height=\"384\" rx=\"12\"/>\n  <text class=\"label\" x=\"50\" y=\"120\">{title}</text>\n  <text class=\"subtitle\" x=\"50\" y=\"160\">Preview generation queued. Replace this asset with KiCad output.</text>\n</svg>\n"""
 )
+
+_SVG_NAMESPACE: Final = "http://www.w3.org/2000/svg"
+ET.register_namespace("", _SVG_NAMESPACE)
+_DIMENSION_RE = re.compile(r"([0-9.+-eE]+)")
+
+
+@dataclass(slots=True)
+class _SvgDimensions:
+    width: float
+    height: float
+
+
+def _parse_svg_dimensions(svg: ET.ElementTree) -> _SvgDimensions:
+    """Extract width/height for an SVG element, falling back to viewBox if needed."""
+
+    root = svg.getroot()
+    width_attr = root.get("width")
+    height_attr = root.get("height")
+
+    def _parse(value: str | None) -> float | None:
+        if not value:
+            return None
+        match = _DIMENSION_RE.search(value)
+        if not match:
+            return None
+        try:
+            return float(match.group(1))
+        except ValueError:
+            return None
+
+    width = _parse(width_attr)
+    height = _parse(height_attr)
+
+    if width is not None and height is not None:
+        return _SvgDimensions(width, height)
+
+    viewbox = root.get("viewBox")
+    if viewbox:
+        parts = [p for p in re.split(r"[\s,]+", viewbox.strip()) if p]
+        if len(parts) == 4:
+            try:
+                _, _, vb_width, vb_height = map(float, parts)
+                return _SvgDimensions(vb_width, vb_height)
+            except ValueError:
+                pass
+
+    raise ValueError("Unable to determine SVG dimensions")
+
+
+def _grid_dimensions(count: int) -> tuple[int, int]:
+    """Return (rows, columns) providing a balanced grid for the given count."""
+
+    if count <= 0:
+        return (1, 1)
+    columns = math.ceil(math.sqrt(count))
+    rows = math.ceil(count / columns)
+    return rows, columns
+
+
+def _compose_svg_grid(svgs: list[Path], destination: Path, *, padding_ratio: float = 0.05) -> Path:
+    """Combine multiple SVG sheets into a single grid-based SVG."""
+
+    trees: list[ET.ElementTree] = []
+    dimensions: list[_SvgDimensions] = []
+    for svg_path in svgs:
+        tree = ET.parse(svg_path)
+        trees.append(tree)
+        try:
+            dimensions.append(_parse_svg_dimensions(tree))
+        except ValueError as exc:
+            raise RuntimeError(f"Unable to read dimensions from {svg_path}") from exc
+
+    if not trees:
+        raise RuntimeError("No SVGs supplied for composition")
+
+    max_width = max(dim.width for dim in dimensions)
+    max_height = max(dim.height for dim in dimensions)
+    rows, cols = _grid_dimensions(len(trees))
+
+    padding_x = max_width * padding_ratio
+    padding_y = max_height * padding_ratio
+
+    cell_width = max_width + padding_x
+    cell_height = max_height + padding_y
+
+    total_width = cols * cell_width - padding_x
+    total_height = rows * cell_height - padding_y
+
+    root = ET.Element(
+        "{%s}svg" % _SVG_NAMESPACE,
+        attrib={
+            "width": f"{total_width}",
+            "height": f"{total_height}",
+            "viewBox": f"0 0 {total_width} {total_height}",
+            "version": "1.1",
+        },
+    )
+
+    for index, (tree, dim) in enumerate(zip(trees, dimensions, strict=True)):
+        row = index // cols
+        col = index % cols
+        translate_x = col * cell_width
+        translate_y = row * cell_height
+
+        group = ET.SubElement(
+            root,
+            "{%s}g" % _SVG_NAMESPACE,
+            attrib={"transform": f"translate({translate_x},{translate_y})"},
+        )
+
+        scale_x = max_width / dim.width if dim.width else 1.0
+        scale_y = max_height / dim.height if dim.height else 1.0
+        uniform_scale = min(scale_x, scale_y)
+
+        scale_transform = ""
+        if not math.isclose(uniform_scale, 1.0):
+            scale_transform = f" scale({uniform_scale})"
+
+        sheet_group = ET.SubElement(group, "{%s}g" % _SVG_NAMESPACE)
+        if scale_transform:
+            sheet_group.set("transform", scale_transform.strip())
+
+        for child in deepcopy(list(tree.getroot())):
+            sheet_group.append(child)
+
+    composed_tree = ET.ElementTree(root)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    composed_tree.write(destination, encoding="utf-8", xml_declaration=True)
+    return destination
 
 
 def process_project_archive(
@@ -88,15 +221,18 @@ def process_project_archive(
         "models": [],
     }
 
-    schematic_file = _find_first(extraction_root, "*.kicad_sch")
+    schematic_sources = _find_all_schematics(extraction_root)
     board_file = _find_first(extraction_root, "*.kicad_pcb")
 
-    if schematic_file is None:
+    if not schematic_sources:
         logger.warning("No schematic file found for project %s", project_id)
     else:
         try:
-            index["schematics"] = _render_all_schematics(
-                schematic_file, schematics_root
+            index["schematics"] = _render_schematic_bundle(
+                schematic_sources[0],
+                schematics_root,
+                schematic_sources,
+                extraction_root,
             )
         except Exception:  # noqa: BLE001
             logger.exception("Schematic rendering failed for project %s", project_id)
@@ -157,10 +293,20 @@ def _find_first(root: Path, pattern: str) -> Path | None:
     return next(root.rglob(pattern), None)
 
 
-def _render_all_schematics(source: Path, output_dir: Path) -> list[dict[str, Any]]:
-    """Render every sheet in the schematic to individual SVG files."""
+def _find_all_schematics(root: Path) -> list[Path]:
+    """Return all schematic sources inside the extracted archive."""
 
-    entries: list[dict[str, Any]] = []
+    return sorted(root.rglob("*.kicad_sch"))
+
+
+def _render_schematic_bundle(
+    primary_source: Path,
+    output_dir: Path,
+    all_sources: list[Path],
+    project_root: Path,
+) -> list[dict[str, Any]]:
+    """Render schematic sheets and return a single preview entry with page metadata."""
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -175,7 +321,7 @@ def _render_all_schematics(source: Path, output_dir: Path) -> list[dict[str, Any
                 str(tmp_path),
                 "--exclude-drawing-sheet",
                 "--no-background-color",
-                str(source),
+                str(primary_source),
             ]
         )
 
@@ -184,6 +330,8 @@ def _render_all_schematics(source: Path, output_dir: Path) -> list[dict[str, Any
             raise RuntimeError("No schematic SVG generated")
 
         used_filenames: set[str] = set()
+        pages: list[dict[str, Any]] = []
+        copied_svg_paths: list[Path] = []
         for idx, svg_file in enumerate(exported, start=1):
             title = _derive_sheet_title(svg_file)
             slug = _slugify(f"{idx:02d}-{title}")
@@ -192,19 +340,61 @@ def _render_all_schematics(source: Path, output_dir: Path) -> list[dict[str, Any
 
             destination = output_dir / filename
             shutil.copyfile(svg_file, destination)
+            copied_svg_paths.append(destination)
 
-            entries.append(
+            pages.append(
                 {
                     "id": slug,
                     "filename": filename,
                     "title": title,
                     "page": idx,
-                    "placeholder": False,
                     "path": f"{_SCHEMATIC_DIR}/{filename}",
                 }
             )
 
-    return entries
+    composed_entry: dict[str, Any] | None = None
+    if len(copied_svg_paths) > 1:
+        composed_filename = _unique_filename("schematic-grid", ".svg", used_filenames)
+        composed_path = output_dir / composed_filename
+        try:
+            _compose_svg_grid(copied_svg_paths, composed_path)
+        except Exception:
+            logger.exception("Failed to compose schematic grid; falling back to first sheet")
+        else:
+            composed_entry = {
+                "id": f"{_slugify(primary_source.stem) or 'schematics'}-grid",
+                "filename": composed_filename,
+                "title": "All sheets",
+                "placeholder": False,
+                "path": f"{_SCHEMATIC_DIR}/{composed_filename}",
+            }
+
+    sources: list[str] = []
+    for source in all_sources:
+        try:
+            sources.append(str(source.relative_to(project_root)))
+        except ValueError:
+            sources.append(str(source))
+
+    bundle_id = _slugify(primary_source.stem) or "schematics"
+    first_entry = composed_entry or pages[0]
+
+    bundle: dict[str, Any] = {
+        "id": bundle_id,
+        "filename": first_entry["filename"],
+        "title": first_entry.get("title", first_entry["filename"]),
+        "placeholder": False,
+        "path": first_entry["path"],
+        "page_count": len(pages),
+        "pages": pages,
+        "sources": sources,
+        "multi_page": len(pages) > 1,
+    }
+
+    if composed_entry:
+        bundle["composed"] = composed_entry
+
+    return [bundle]
 
 
 def _render_board_svgs(source: Path, output_dir: Path) -> list[dict[str, Any]]:

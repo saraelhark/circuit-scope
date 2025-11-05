@@ -8,6 +8,7 @@ export type ViewerView = {
   label: string
   asset?: PreviewAsset | null
   fallbackMessage?: string
+  pages?: PreviewAsset[]
 }
 
 const props = withDefaults(
@@ -45,7 +46,7 @@ const maxZoom = 6
 const zoomStep = 0.2
 const translate = ref({ x: 0, y: 0 })
 
-const defaultViewportFill = 0.7
+const defaultViewportFill = 0.9
 
 const panOrigin = ref({ x: 0, y: 0 })
 const pointerStart = ref({ x: 0, y: 0 })
@@ -60,9 +61,18 @@ const assetError = ref<string | null>(null)
 const assetBounds = ref<DOMRect | null>(null)
 
 const activeView = computed(() => props.views.find((view) => view.id === activeViewId.value) ?? props.views[0])
-const activeAsset = computed(() => activeView.value?.asset)
+const activeAsset = computed<PreviewAsset | null | undefined>(() => activeView.value?.asset)
+const displayAsset = computed<PreviewAsset | null>(() => activeAsset.value?.composed ?? activeAsset.value ?? null)
+const displayAssetKey = computed(() => displayAsset.value?.url ?? displayAsset.value?.path ?? "")
+const displayAssetSrc = computed(() => displayAsset.value?.url ?? "")
+const displayAssetAlt = computed(
+  () => displayAsset.value?.title ?? displayAsset.value?.filename ?? "Preview asset",
+)
 
-const hasAsset = computed(() => Boolean(activeAsset.value?.url && !activeAsset.value.placeholder && !assetError.value))
+const hasAsset = computed(() => {
+  const asset = displayAsset.value
+  return Boolean(asset?.url && !asset?.placeholder && !assetError.value)
+})
 const isLayoutView = computed(() => activeView.value?.id?.startsWith("pcb"))
 const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
 
@@ -86,14 +96,14 @@ watch(
   { immediate: true },
 )
 
-watch(activeViewId, (value) => {
+watch(activeViewId, (value, _old) => {
   if (!value) return
   emit("viewChange", value)
   resetView()
 })
 
 watch(
-  () => activeAsset.value?.url,
+  () => displayAsset.value?.url,
   () => {
     assetError.value = null
     isAssetLoaded.value = false
@@ -251,7 +261,7 @@ defineExpose({ adjustZoom, resetView })
 <template>
   <div class="space-y-4">
     <div v-if="showControls !== false" class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <button v-for="view in views" :key="view.id" type="button"
           class="rounded-md border px-3 py-1 text-sm transition" :class="view.id === activeView?.id
             ? 'border-primary bg-primary/10 text-primary'
@@ -297,13 +307,13 @@ defineExpose({ adjustZoom, resetView })
                 </div>
 
                 <div v-else class="relative max-h-[70vh] max-w-[80vw]" :style="layoutBackgroundStyle">
-                  <img ref="imageRef" :key="activeAsset?.url ?? activeAsset?.path" :src="activeAsset?.url ?? ''"
-                    :alt="activeAsset?.title ?? activeAsset?.filename ?? 'Preview asset'" draggable="false"
+                  <img ref="imageRef" :key="displayAssetKey" :src="displayAssetSrc"
+                    :alt="displayAssetAlt" draggable="false"
                     @dragstart.prevent loading="lazy" decoding="async" class="max-h-[70vh] max-w-[80vw]"
                     @load="handleAssetLoad" @error="handleAssetError" />
                   <div v-if="!isAssetLoaded" class="absolute inset-0 animate-pulse bg-muted/50" />
                   <div class="pointer-events-none absolute inset-0">
-                    <slot name="overlay" :view="activeView" :asset="activeAsset" :image-bounds="assetBounds" />
+                    <slot name="overlay" :view="activeView" :asset="displayAsset" :image-bounds="assetBounds" />
                   </div>
                 </div>
               </div>
@@ -316,9 +326,10 @@ defineExpose({ adjustZoom, resetView })
     <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
       <div class="space-x-2">
         <span>{{ activeView?.label ?? "View" }}</span>
-        <span v-if="activeAsset?.title">• {{ activeAsset.title }}</span>
-        <span v-if="activeAsset?.page !== undefined">• Page {{ activeAsset.page }}</span>
-        <span v-if="activeAsset?.layers?.length">• Layers: {{ activeAsset.layers.join(", ") }}</span>
+        <span v-if="displayAsset?.title">• {{ displayAsset!.title }}</span>
+        <span v-if="displayAsset?.page !== undefined">• Page {{ displayAsset!.page }}</span>
+        <span v-if="activeAsset?.page_count && activeAsset.page_count > 1">• {{ activeAsset.page_count }} sheets</span>
+        <span v-if="displayAsset?.layers?.length">• Layers: {{ displayAsset!.layers!.join(", ") }}</span>
       </div>
     </div>
   </div>

@@ -30,9 +30,6 @@ _MODEL_DIR: Final = "models"
 _INDEX_FILENAME: Final = "index.json"
 _SAFE_ASSET_SUFFIXES: Final = {".svg", ".glb"}
 _SAFE_SOURCE_SUFFIXES: Final = {".kicad_sch", ".kicad_pcb", ".kicad_pro", ".kicad_prl"}
-_PLACEHOLDER_SVG_TEMPLATE: Final = (
-    """<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"640\" height=\"480\" viewBox=\"0 0 640 480\">\n  <defs>\n    <style>\n      .bg {{ fill: #101828; }}\n      .frame {{ fill: none; stroke: #2563eb; stroke-width: 4; stroke-dasharray: 16 12; }}\n      .label {{ fill: #f8fafc; font: 24px/1.4 \"SFMono-Regular\", Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace; }}\n      .subtitle {{ fill: #cbd5f5; font: 16px/1.4 system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; }}\n    </style>\n  </defs>\n  <rect class=\"bg\" x=\"0\" y=\"0\" width=\"640\" height=\"480\" rx=\"18\"/>\n  <rect class=\"frame\" x=\"36\" y=\"48\" width=\"568\" height=\"384\" rx=\"12\"/>\n  <text class=\"label\" x=\"50\" y=\"120\">{title}</text>\n  <text class=\"subtitle\" x=\"50\" y=\"160\">Preview generation queued. Replace this asset with KiCad output.</text>\n</svg>\n"""
-)
 
 _SVG_NAMESPACE: Final = "http://www.w3.org/2000/svg"
 ET.register_namespace("", _SVG_NAMESPACE)
@@ -256,7 +253,6 @@ def process_project_archive(
         except Exception:
             logger.exception("Board GLB rendering failed for project %s", project_id)
 
-    _ensure_placeholders(index, schematics_root, layouts_root)
     _write_index(previews_root, index)
 
 
@@ -369,7 +365,6 @@ def _render_schematic_bundle(
                 "id": f"{_slugify(primary_source.stem) or 'schematics'}-grid",
                 "filename": composed_filename,
                 "title": "All sheets",
-                "placeholder": False,
                 "path": f"{_SCHEMATIC_DIR}/{composed_filename}",
             }
 
@@ -387,7 +382,6 @@ def _render_schematic_bundle(
         "id": bundle_id,
         "filename": first_entry["filename"],
         "title": first_entry.get("title", first_entry["filename"]),
-        "placeholder": False,
         "path": first_entry["path"],
         "page_count": len(pages),
         "pages": pages,
@@ -453,7 +447,6 @@ def _render_board_svgs(source: Path, output_dir: Path) -> list[dict[str, Any]]:
                     "filename": filename,
                     "title": title,
                     "layers": layers,
-                    "placeholder": False,
                     "path": f"{_LAYOUT_DIR}/{filename}",
                 }
             )
@@ -485,7 +478,6 @@ def _render_board_glb(source: Path, output_dir: Path) -> dict[str, Any] | None:
             "id": "board-3d",
             "filename": destination.name,
             "title": "3D model",
-            "placeholder": False,
             "path": f"{_MODEL_DIR}/{destination.name}",
         }
     return None
@@ -507,51 +499,6 @@ def _run_cli(command: list[str]) -> None:
         raise RuntimeError("kicad-cli command timed out") from exc
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"kicad-cli exited with code {exc.returncode}") from exc
-
-
-def _write_placeholder(target: Path, title: str) -> None:
-    """Write a placeholder SVG asset with the provided title."""
-
-    try:
-        target.write_text(
-            _PLACEHOLDER_SVG_TEMPLATE.format(title=title), encoding="utf-8"
-        )
-    except OSError:
-        logger.exception("Failed to write placeholder preview asset: %s", target)
-
-
-def _ensure_placeholders(
-    index: dict[str, Any], schematics_root: Path, layouts_root: Path
-) -> None:
-    """Ensure at least one schematic and layout asset exists."""
-
-    if not index["schematics"]:
-        placeholder = schematics_root / "placeholder.svg"
-        _write_placeholder(placeholder, "Schematic preview")
-        index["schematics"].append(
-            {
-                "id": "schematic-placeholder",
-                "filename": placeholder.name,
-                "title": "No schematic provided",
-                "page": 1,
-                "placeholder": True,
-                "path": f"{_SCHEMATIC_DIR}/{placeholder.name}",
-            }
-        )
-
-    if not index["layouts"]:
-        placeholder = layouts_root / "placeholder.svg"
-        _write_placeholder(placeholder, "PCB layout preview")
-        index["layouts"].append(
-            {
-                "id": "layout-placeholder",
-                "filename": placeholder.name,
-                "title": "No layout provided",
-                "layers": [],
-                "placeholder": True,
-                "path": f"{_LAYOUT_DIR}/{placeholder.name}",
-            }
-        )
 
 
 def _write_index(previews_root: Path, index: dict[str, Any]) -> None:

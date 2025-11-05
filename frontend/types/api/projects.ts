@@ -47,7 +47,6 @@ export interface PreviewAsset {
   multi_page?: boolean
   sources?: string[]
   layers?: string[]
-  placeholder?: boolean
   path?: string
   url?: string | null
 }

@@ -389,8 +389,7 @@ function resetZoom() { viewer.value?.resetView() }
             <!-- Project viewer -->
             <ReviewCanvas ref="viewer" class="h-full w-full" :views="viewerViews"
                 :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'" :active-tool="selectedTool"
-                :annotations="viewAnnotations"
-                @view-change="setActiveView" @shape-created="handleShapeCreated">
+                :annotations="viewAnnotations" @view-change="setActiveView" @shape-created="handleShapeCreated">
                 <!-- existing overlay slot preserved -->
                 <template #overlay="slotProps">
                     <component :is="{ ...slotProps }" />
@@ -403,9 +402,9 @@ function resetZoom() { viewer.value?.resetView() }
         </div>
 
         <!-- Comments sidebar -->
-        <aside v-if="sidebarOpen" class="relative w-80 shrink-0 border-l bg-card">
+        <aside v-if="sidebarOpen" class="relative w-96 shrink-0 border-l bg-card">
             <button @click="toggleSidebar"
-                class="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 rounded-r-md border bg-card px-1 py-2 text-xs">&gt;</button>
+                class="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 rounded-r-md border bg-card p-2 text-xs">&gt;</button>
             <div class="flex h-full flex-col overflow-hidden p-4">
                 <!-- Existing comment panel content pasted here -->
                 <!-- START existing sidebar markup -->
@@ -424,7 +423,7 @@ function resetZoom() { viewer.value?.resetView() }
                         new thread.</p>
                     <form v-if="pendingPin" class="space-y-3 overflow-y-auto" @submit.prevent="submitNewThread">
                         <!-- guest fields -->
-                        <div class="grid gap-2 text-sm">
+                        <div class="grid gap-2 text-sm p-2">
                             <label class="flex flex-col gap-1"><span class="font-medium">Guest name</span><Input
                                     v-model="newThreadForm.guestName" placeholder="Jane Reviewer" /></label>
                             <label class="flex flex-col gap-1"><span class="font-medium">Guest email</span><Input

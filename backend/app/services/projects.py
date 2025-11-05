@@ -132,7 +132,7 @@ async def list_projects(
 
     if only_public is not None:
         query = query.where(Project.is_public.is_(only_public))
-    total_query = select(func.count()).select_from(Project)
+    total_query = select(func.count(Project.id))
     if owner_id is not None:
         query = query.where(Project.owner_id == owner_id)
         total_query = total_query.where(Project.owner_id == owner_id)

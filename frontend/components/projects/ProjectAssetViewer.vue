@@ -71,7 +71,7 @@ const displayAssetAlt = computed(
 
 const hasAsset = computed(() => {
   const asset = displayAsset.value
-  return Boolean(asset?.url && !asset?.placeholder && !assetError.value)
+  return Boolean(asset?.url && !assetError.value)
 })
 const isLayoutView = computed(() => activeView.value?.id?.startsWith("pcb"))
 const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
@@ -301,9 +301,6 @@ defineExpose({ adjustZoom, resetView })
                 <div v-if="!hasAsset"
                   class="flex h-[420px] w-[720px] max-w-[85vw] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
                   <p>{{ assetError ?? activeView?.fallbackMessage ?? "No asset available for this view." }}</p>
-                  <p v-if="activeAsset?.placeholder" class="text-xs text-muted-foreground">
-                    Placeholder generated during processing.
-                  </p>
                 </div>
 
                 <div v-else class="relative max-h-[70vh] max-w-[80vw]" :style="layoutBackgroundStyle">

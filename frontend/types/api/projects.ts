@@ -46,7 +46,6 @@ export interface PreviewAsset {
   pages?: PreviewAsset[]
   multi_page?: boolean
   sources?: string[]
-  composed?: PreviewAsset
   layers?: string[]
   placeholder?: boolean
   path?: string

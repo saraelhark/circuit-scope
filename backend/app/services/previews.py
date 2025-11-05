@@ -92,7 +92,9 @@ def _grid_dimensions(count: int) -> tuple[int, int]:
     return rows, columns
 
 
-def _compose_svg_grid(svgs: list[Path], destination: Path, *, padding_ratio: float = 0.05) -> Path:
+def _compose_svg_grid(
+    svgs: list[Path], destination: Path, *, padding_ratio: float = 0.05
+) -> Path:
     """Combine multiple SVG sheets into a single grid-based SVG."""
 
     trees: list[ET.ElementTree] = []
@@ -234,7 +236,7 @@ def process_project_archive(
                 schematic_sources,
                 extraction_root,
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("Schematic rendering failed for project %s", project_id)
 
     if board_file is None:
@@ -244,14 +246,14 @@ def process_project_archive(
             layout_entries = _render_board_svgs(board_file, layouts_root)
             if layout_entries:
                 index["layouts"].extend(layout_entries)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("Board SVG rendering failed for project %s", project_id)
 
         try:
             model_entry = _render_board_glb(board_file, models_root)
             if model_entry:
                 index["models"].append(model_entry)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("Board GLB rendering failed for project %s", project_id)
 
     _ensure_placeholders(index, schematics_root, layouts_root)
@@ -359,7 +361,9 @@ def _render_schematic_bundle(
         try:
             _compose_svg_grid(copied_svg_paths, composed_path)
         except Exception:
-            logger.exception("Failed to compose schematic grid; falling back to first sheet")
+            logger.exception(
+                "Failed to compose schematic grid; falling back to first sheet"
+            )
         else:
             composed_entry = {
                 "id": f"{_slugify(primary_source.stem) or 'schematics'}-grid",
@@ -390,9 +394,6 @@ def _render_schematic_bundle(
         "sources": sources,
         "multi_page": len(pages) > 1,
     }
-
-    if composed_entry:
-        bundle["composed"] = composed_entry
 
     return [bundle]
 
@@ -583,10 +584,26 @@ def _read_project_metadata(extraction_root: Path) -> dict[str, Any]:
 
     return {
         "source": str(project_file.relative_to(extraction_root)),
-        "title": title_block.get("title") if isinstance(title_block, dict) else metadata.get("title"),
-        "company": title_block.get("company") if isinstance(title_block, dict) else metadata.get("company"),
-        "revision": title_block.get("revision") if isinstance(title_block, dict) else metadata.get("revision"),
-        "date": title_block.get("date") if isinstance(title_block, dict) else metadata.get("date"),
+        "title": (
+            title_block.get("title")
+            if isinstance(title_block, dict)
+            else metadata.get("title")
+        ),
+        "company": (
+            title_block.get("company")
+            if isinstance(title_block, dict)
+            else metadata.get("company")
+        ),
+        "revision": (
+            title_block.get("revision")
+            if isinstance(title_block, dict)
+            else metadata.get("revision")
+        ),
+        "date": (
+            title_block.get("date")
+            if isinstance(title_block, dict)
+            else metadata.get("date")
+        ),
     }
 
 

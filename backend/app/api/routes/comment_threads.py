@@ -25,7 +25,7 @@ from app.services.comment_threads import (
     update_thread_resolution,
 )
 
-router = APIRouter(prefix="/projects/{project_id}/threads", tags=["comment-threads"])
+router = APIRouter()
 
 
 @router.get("/", response_model=CommentThreadListResponse)
@@ -33,15 +33,19 @@ async def list_comment_threads(
     project_id: UUID,
     session: AsyncSession = Depends(get_db_session),
 ) -> CommentThreadListResponse:
+    """List all review threads for a project."""
     return await list_threads(session, project_id=project_id)
 
 
-@router.post("/", response_model=CommentThreadResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=CommentThreadResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_comment_thread(
     project_id: UUID,
     payload: CommentThreadCreate,
     session: AsyncSession = Depends(get_db_session),
 ) -> CommentThreadResponse:
+    """Create a new review thread."""
     return await create_thread(session, project_id=project_id, payload=payload)
 
 
@@ -56,6 +60,7 @@ async def create_comment_thread_reply(
     payload: ThreadCommentCreate,
     session: AsyncSession = Depends(get_db_session),
 ) -> ThreadCommentResponse:
+    """Add a new comment to a review thread."""
     return await add_comment(
         session,
         project_id=project_id,
@@ -74,6 +79,7 @@ async def update_comment_thread_resolution(
     payload: ThreadResolutionUpdate,
     session: AsyncSession = Depends(get_db_session),
 ) -> CommentThreadResponse:
+    """Update the resolution of a review thread."""
     return await update_thread_resolution(
         session,
         project_id=project_id,
@@ -88,6 +94,7 @@ async def delete_comment_thread(
     thread_id: UUID,
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
+    """Delete a review thread."""
     await delete_thread(session, project_id=project_id, thread_id=thread_id)
     return None
 
@@ -102,6 +109,7 @@ async def delete_comment_thread_comment(
     comment_id: UUID,
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
+    """Delete a comment from a review thread."""
     await delete_comment(
         session,
         project_id=project_id,

@@ -60,6 +60,7 @@ async def create_project_endpoint(
     session: AsyncSession = Depends(get_db_session),
     storage: StorageService = Depends(get_storage_service),
 ) -> ProjectUploadResponse:
+    """Create a new project."""
     logger.info("Attempting to create project: %s", project_data)
     try:
         payload = ProjectCreate.model_validate_json(project_data)
@@ -82,6 +83,7 @@ async def list_projects_endpoint(
     owner_id: UUID | None = None,
     session: AsyncSession = Depends(get_db_session),
 ) -> ProjectListResponse:
+    """List all projects."""
     logger.info("Attempting to list projects")
     return await list_projects(
         session, page=page, size=size, only_public=only_public, owner_id=owner_id
@@ -93,6 +95,7 @@ async def get_project_endpoint(
     project_id: UUID,
     session: AsyncSession = Depends(get_db_session),
 ) -> ProjectResponse:
+    """Get a project by ID."""
     return await get_project(session, project_id)
 
 
@@ -102,6 +105,7 @@ async def update_project_endpoint(
     payload: ProjectUpdate,
     session: AsyncSession = Depends(get_db_session),
 ) -> ProjectResponse:
+    """Update a project."""
     return await update_project(session, project_id, payload)
 
 
@@ -111,6 +115,7 @@ async def delete_project_endpoint(
     session: AsyncSession = Depends(get_db_session),
     storage: StorageService = Depends(get_storage_service),
 ) -> None:
+    """Delete a project."""
     await delete_project(session, storage, project_id)
     return None
 
@@ -122,6 +127,7 @@ async def get_project_previews_endpoint(
     session: AsyncSession = Depends(get_db_session),
     storage: StorageService = Depends(get_storage_service),
 ) -> ProjectPreviewResponse:
+    """Get project previews."""
     await get_project(session, project_id)
 
     try:
@@ -174,15 +180,16 @@ async def get_project_preview_asset(
     session: AsyncSession = Depends(get_db_session),
     storage: StorageService = Depends(get_storage_service),
 ):
+    """Get a project preview asset."""
     await get_project(session, project_id)
 
     try:
         fs_path = preview_asset_filesystem_path(storage, project_id, asset_path)
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Preview not available"
-        )
-    except Exception as exc:  # noqa: BLE001
+        ) from exc
+    except Exception as exc:
         logger.exception("Failed to resolve preview asset for project %s", project_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

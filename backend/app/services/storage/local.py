@@ -38,12 +38,12 @@ class LocalStorage(StorageService):
 
         try:
             await asyncio.to_thread(_write)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise StorageError("Failed to save file") from exc
         finally:
             try:
                 file_obj.close()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
         return path
@@ -58,7 +58,7 @@ class LocalStorage(StorageService):
 
         try:
             await asyncio.to_thread(_delete)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise StorageError("Failed to delete file") from exc
 
     async def get_url(self, path: str) -> str | None:

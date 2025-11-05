@@ -62,7 +62,7 @@ const assetBounds = ref<DOMRect | null>(null)
 
 const activeView = computed(() => props.views.find((view) => view.id === activeViewId.value) ?? props.views[0])
 const activeAsset = computed<PreviewAsset | null | undefined>(() => activeView.value?.asset)
-const displayAsset = computed<PreviewAsset | null>(() => activeAsset.value?.composed ?? activeAsset.value ?? null)
+const displayAsset = computed<PreviewAsset | null>(() => activeAsset.value ?? null)
 const displayAssetKey = computed(() => displayAsset.value?.url ?? displayAsset.value?.path ?? "")
 const displayAssetSrc = computed(() => displayAsset.value?.url ?? "")
 const displayAssetAlt = computed(

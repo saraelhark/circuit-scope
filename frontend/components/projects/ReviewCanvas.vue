@@ -55,16 +55,16 @@ const emit = defineEmits<{
   shapeCreated: [
     (
       | ({
-          viewId: string
-          /** pinX / pinY are the anchor point (centre for circle, start for arrow) in 0..1 percentages */
-          pinX: number
-          pinY: number
-        } & CircleViewerAnnotation)
+        viewId: string
+        /** pinX / pinY are the anchor point (centre for circle, start for arrow) in 0..1 percentages */
+        pinX: number
+        pinY: number
+      } & CircleViewerAnnotation)
       | ({
-          viewId: string
-          pinX: number
-          pinY: number
-        } & ArrowViewerAnnotation)
+        viewId: string
+        pinX: number
+        pinY: number
+      } & ArrowViewerAnnotation)
     )
   ]
 }>()
@@ -94,7 +94,8 @@ const assetBounds = ref<DOMRect | null>(null)
 /* Active view logic */
 const activeViewId = ref<string | null>(null)
 const activeView = computed(() => props.views.find((v) => v.id === activeViewId.value) ?? props.views[0])
-const activeAsset = computed(() => activeView.value?.asset)
+const composedAsset = computed(() => activeView.value?.asset ?? null)
+const activeAsset = computed(() => composedAsset.value ?? activeView.value?.asset)
 const isLayoutView = computed(() => activeView.value?.id?.startsWith("pcb"))
 const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
 const annotationColor = "#7CFF00"
@@ -145,7 +146,7 @@ function computeInitialZoom() {
   const natW = imageRef.value.naturalWidth || imageRef.value.width
   const natH = imageRef.value.naturalHeight || imageRef.value.height
   if (!natW || !natH) return 1
-  const scale = Math.min((viewport.width * 0.7) / natW, (viewport.height * 0.7) / natH)
+  const scale = Math.min((viewport.width * 0.9) / natW, (viewport.height * 0.9) / natH)
   const clamped = Math.min(maxZoom, Math.max(minZoom, scale))
   return Number(clamped.toFixed(2))
 }
@@ -392,18 +393,17 @@ defineExpose({ adjustZoom, resetView, setActiveView })
                 @dragstart.prevent loading="lazy" decoding="async" @load="handleImageLoad"
                 class="max-h-[70vh] max-w-[80vw]" />
               <!-- Overlay SVG for annotations -->
-              <svg v-if="assetBounds && (activeViewShapes.length || draftShape)" class="pointer-events-none absolute inset-0"
-                :viewBox="`0 0 1 1`" preserveAspectRatio="none" :style="{ overflow: 'visible' }">
+              <svg v-if="assetBounds && (activeViewShapes.length || draftShape)"
+                class="pointer-events-none absolute inset-0" :viewBox="`0 0 1 1`" preserveAspectRatio="none"
+                :style="{ overflow: 'visible' }">
                 <!-- Render existing shapes -->
                 <template v-for="shape in activeViewShapes" :key="shape.id">
-                  <circle v-if="shape.tool === 'circle'"
-                    :cx="(shape.startX + shape.endX) / 2"
+                  <circle v-if="shape.tool === 'circle'" :cx="(shape.startX + shape.endX) / 2"
                     :cy="(shape.startY + shape.endY) / 2"
                     :r="Math.max(Math.abs(shape.endX - shape.startX), Math.abs(shape.endY - shape.startY)) / 2"
                     :stroke="annotationColor" stroke-width="0.002" fill="none" />
-                  <line v-else :x1="shape.startX" :y1="shape.startY" :x2="shape.endX"
-                    :y2="shape.endY" :stroke="annotationColor" stroke-width="0.002"
-                    marker-end="url(#arrowhead)" />
+                  <line v-else :x1="shape.startX" :y1="shape.startY" :x2="shape.endX" :y2="shape.endY"
+                    :stroke="annotationColor" stroke-width="0.002" marker-end="url(#arrowhead)" />
                 </template>
                 <!-- Draft shape while drawing -->
                 <template v-if="draftShape">

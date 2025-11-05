@@ -29,6 +29,7 @@ async def list_project_reviews(
     project_id: UUID,
     session: AsyncSession = Depends(get_db_session),
 ) -> ReviewListResponse:
+    """List all reviews for a project."""
     return await list_reviews(session, project_id)
 
 
@@ -41,6 +42,7 @@ async def create_project_review(
     ),
     session: AsyncSession = Depends(get_db_session),
 ) -> ReviewResponse:
+
     reviewer_id = payload.reviewer_id
     if reviewer_id is None:
         if x_reviewer_id is None:
@@ -61,6 +63,7 @@ async def update_project_review(
     payload: ReviewUpdate,
     session: AsyncSession = Depends(get_db_session),
 ) -> ReviewResponse:
+    """Update a review."""
     return await update_review(session, project_id, review_id, payload)
 
 
@@ -70,5 +73,6 @@ async def delete_project_review(
     review_id: UUID,
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
+    """Delete a review."""
     await delete_review(session, project_id, review_id)
     return None

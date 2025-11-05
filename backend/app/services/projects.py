@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 from uuid import UUID
+import logging
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import Select, func, select
@@ -21,6 +22,8 @@ from app.services.previews import process_project_archive
 from app.services.storage.base import StorageService
 from db.models import Project, ProjectFile, User
 
+logger = logging.getLogger(__name__)
+
 
 async def _ensure_owner_exists(session: AsyncSession, owner_id: UUID) -> User:
     owner = await session.get(User, owner_id)
@@ -37,6 +40,7 @@ async def create_project(
     payload: ProjectCreate,
     upload_file: UploadFile | None,
 ) -> tuple[ProjectResponse, dict[str, Any] | None]:
+    """Create a new project."""
     if payload.owner_id is None:
         owner = User()
         session.add(owner)
@@ -89,9 +93,8 @@ async def create_project(
 
         try:
             process_project_archive(storage, project.id, storage_path)
-        except Exception:  # noqa: BLE001
+        except Exception:
             # Failures during preview generation should not block project creation.
-            logger = logging.getLogger(__name__)
             logger.exception("Preview generation failed for project %s", project.id)
 
     try:
@@ -114,6 +117,7 @@ async def list_projects(
     only_public: bool | None = None,
     owner_id: UUID | None = None,
 ) -> ProjectListResponse:
+    """List projects."""
     if page < 1 or size < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -154,6 +158,7 @@ async def list_projects(
 
 
 async def get_project(session: AsyncSession, project_id: UUID) -> ProjectResponse:
+    """Get a project."""
     project = await _get_project_model(session, project_id)
     return ProjectResponse.model_validate(project, from_attributes=True)
 
@@ -163,6 +168,7 @@ async def update_project(
     project_id: UUID,
     payload: ProjectUpdate,
 ) -> ProjectResponse:
+    """Update a project."""
     project = await _get_project_model(session, project_id)
 
     for field, value in payload.model_dump(
@@ -180,6 +186,7 @@ async def delete_project(
     storage: StorageService,
     project_id: UUID,
 ) -> None:
+    """Delete a project."""
     project = await _get_project_model(session, project_id)
 
     file_paths = [file.storage_path for file in project.files]
@@ -190,11 +197,12 @@ async def delete_project(
     for path in file_paths:
         try:
             await storage.delete(path)
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
 
 
 async def _get_project_model(session: AsyncSession, project_id: UUID) -> Project:
+    """Get a project model."""
     result = await session.execute(
         select(Project)
         .options(selectinload(Project.files))

@@ -1,16 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue"
+import { Share2 } from "lucide-vue-next"
 
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card"
-import { formatDateTime } from "~/lib/formatters"
 import ProjectAssetViewer, { type ViewerView } from "~/components/projects/ProjectAssetViewer.vue"
 import type { Project, ProjectPreviewResponse } from "~/types/api/projects"
 import { useProject } from "~/composables/useProjects"
@@ -107,101 +100,92 @@ useHead(() => ({
 function goToReview() {
   router.push(`/projects/${projectId.value}/review`)
 }
+
+async function shareProject() {
+  if (!import.meta.client) return
+
+  try {
+    const origin = window.location.origin
+    const url = `${origin}/projects/${projectId.value}`
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url)
+    } else {
+      console.warn("Clipboard API not available. Could not copy project link automatically.", url)
+    }
+  } catch (error) {
+    console.error("Failed to copy project link", error)
+  }
+}
 </script>
 
 <template>
-  <!-- Render nested routes such as /projects/:id/review -->
   <NuxtPage v-if="$route.name === 'projects-id-review'" />
-  <!-- Show project details only on the main project route -->
-  <div v-else class="space-y-6">
-    <Card v-if="error">
-      <CardHeader>
-        <CardTitle class="text-xl">Failed to load project</CardTitle>
-        <CardDescription>{{ error?.message ?? "Please try again later." }}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button variant="secondary" @click="refresh">
+  <div v-else class="container py-4 max-w-5xl mx-auto">
+    <div v-if="error">
+      <div class="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
+        <h3 class="font-semibold">Failed to load project</h3>
+        <p class="mt-1 text-sm">{{ error?.message ?? "Please try again later." }}</p>
+        <Button variant="outline" class="mt-4 border-destructive/50 hover:bg-destructive/20" @click="refresh">
           Retry
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
 
     <div v-else>
-      <div v-if="status === 'pending'" class="flex h-32 items-center justify-center text-muted-foreground">
+      <div v-if="status === 'pending'" class="flex h-64 items-center justify-center text-muted-foreground">
         Loading project…
       </div>
 
       <div v-else-if="!project"
-        class="rounded-lg border border-dashed border-muted-foreground/30 p-6 text-center text-sm text-muted-foreground">
+        class="rounded-lg border border-dashed border-muted-foreground/30 p-12 text-center text-muted-foreground">
         Project not found.
       </div>
 
-      <div v-else class="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Card class="lg:col-span-2">
-          <CardHeader>
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div class="space-y-2">
-                <CardTitle class="text-2xl">{{ project.name }}</CardTitle>
-                <CardDescription v-if="project.description" class="max-w-prose">
-                  {{ project.description }}
-                </CardDescription>
-              </div>
-              <div class="flex flex-col items-start gap-2 text-sm sm:items-end">
-                <Badge :variant="projectStatusVariant">
+      <div v-else class="flex flex-col gap-10">
+
+        <div class="flex flex-col gap-4 border-b pb-4">
+          <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div class="space-y-4 flex-1">
+              <h1 class="text-3xl font-bold tracking-tight lg:text-3xl">{{ project.name }}</h1>
+              <div class="flex items-center gap-3">
+                <Badge :variant="projectStatusVariant" class="text-sm px-2 py-0.5">
                   {{ projectStatusLabel }}
                 </Badge>
-                <span class="text-muted-foreground">
-                  Uploaded {{ formatDateTime(project.created_at) }}
-                </span>
               </div>
             </div>
-          </CardHeader>
-          <CardContent v-if="project.github_repo_url || project.secret_link" class="flex flex-col gap-2">
-            <p v-if="project.github_repo_url" class="text-sm text-muted-foreground">
-              <span class="font-medium text-foreground">GitHub:</span>
-              <a class="underline" :href="project.github_repo_url" target="_blank" rel="noopener">
-                {{ project.github_repo_url }}
-              </a>
-            </p>
-            <p v-if="project.secret_link" class="text-sm text-muted-foreground break-all">
-              <span class="font-medium text-foreground">Secret link:</span>
-              {{ project.secret_link }}
-            </p>
-          </CardContent>
-        </Card>
 
-        <Card class="lg:col-span-2">
-          <CardHeader class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="space-y-1">
-              <CardTitle>Previews</CardTitle>
-              <CardDescription>
-                Automatically generated assets from the uploaded KiCad archive.
-              </CardDescription>
+            <div class="flex flex-col gap-3 sm:flex-row shrink-0">
+              <Button size="lg" class="text-base px-8 shadow-sm" @click="goToReview">
+                Start Review
+              </Button>
+              <Button variant="outline" size="lg" class="text-base px-8 shadow-sm" @click="shareProject">
+                <Share2 class="mr-2 h-4 w-4" />
+                Share
+              </Button>
             </div>
-            <Button size="sm" @click="goToReview">
-              Start review
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div v-if="previewStatus === 'pending'"
-              class="flex h-40 items-center justify-center text-sm text-muted-foreground">
-              Generating previews…
-            </div>
-            <div v-else class="space-y-6">
-              <ProjectAssetViewer :views="viewerViews" :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'" :show-controls="true" />
+          </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Comments</CardTitle>
-                </CardHeader>
-                <CardContent class="text-sm text-muted-foreground">
-                  Comments are available in the review workspace. Click “Start review” above to add or respond to
-                  feedback.
-                </CardContent>
-              </Card>
+          <div class="prose prose-lg text-muted-foreground max-w-none">
+            <p v-if="project.description">{{ project.description }}</p>
+            <p v-else class="italic opacity-50">No description provided.</p>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="text-xl font-semibold tracking-tight mb-4">Previews</h2>
+
+          <div v-if="previewStatus === 'pending'"
+            class="flex h-64 items-center justify-center text-muted-foreground bg-muted/10">
+            Generating previews…
+          </div>
+          <div v-else class="bg-card overflow-hidden">
+            <div class="p-1">
+              <ProjectAssetViewer :views="viewerViews" :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'"
+                :show-controls="true" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   </div>

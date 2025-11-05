@@ -14,10 +14,12 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@auth/core": "^0.34.3",
     "@types/node": "^24.9.1",
     "@vueuse/core": "^14.0.0",
     "autoprefixer": "^10.4.21",
     "lucide-vue-next": "^0.548.0",
+    "next-auth": "^4.21.1",
     "nuxt": "3.16.2",
     "postcss": "^8.5.1",
     "radix-vue": "^1.9.17",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.2.0",
+    "@sidebase/nuxt-auth": "^1.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^9.22.0",

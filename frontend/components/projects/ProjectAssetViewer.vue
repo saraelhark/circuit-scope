@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
+import { Button } from "~/components/ui/button"
 
 import type { PreviewAsset } from "~/types/api/projects"
 
@@ -283,7 +284,7 @@ defineExpose({ adjustZoom, resetView })
       </div>
     </div>
 
-    <div ref="containerRef" class="relative overflow-hidden rounded-lg border bg-background">
+    <div ref="containerRef" class="relative overflow-hidden rounded-lg border">
       <div v-if="!views.length" class="flex h-[520px] items-center justify-center text-sm text-muted-foreground">
         No views available.
       </div>
@@ -299,16 +300,15 @@ defineExpose({ adjustZoom, resetView })
             }">
               <div class="relative flex items-center justify-center">
                 <div v-if="!hasAsset"
-                  class="flex h-[420px] w-[720px] max-w-[85vw] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+                  class="flex h-[420px] w-[720px] max-w-[85vw] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/40 p-6 text-center text-sm text-muted-foreground">
                   <p>{{ assetError ?? activeView?.fallbackMessage ?? "No asset available for this view." }}</p>
                 </div>
 
                 <div v-else class="relative max-h-[70vh] max-w-[80vw]" :style="layoutBackgroundStyle">
-                  <img ref="imageRef" :key="displayAssetKey" :src="displayAssetSrc"
-                    :alt="displayAssetAlt" draggable="false"
-                    @dragstart.prevent loading="lazy" decoding="async" class="max-h-[70vh] max-w-[80vw]"
-                    @load="handleAssetLoad" @error="handleAssetError" />
-                  <div v-if="!isAssetLoaded" class="absolute inset-0 animate-pulse bg-muted/50" />
+                  <img ref="imageRef" :key="displayAssetKey" :src="displayAssetSrc" :alt="displayAssetAlt"
+                    draggable="false" @dragstart.prevent loading="lazy" decoding="async"
+                    class="max-h-[70vh] max-w-[80vw]" @load="handleAssetLoad" @error="handleAssetError" />
+                  <div v-if="!isAssetLoaded" class="absolute inset-0" />
                   <div class="pointer-events-none absolute inset-0">
                     <slot name="overlay" :view="activeView" :asset="displayAsset" :image-bounds="assetBounds" />
                   </div>

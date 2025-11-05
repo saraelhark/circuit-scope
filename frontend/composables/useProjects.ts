@@ -12,7 +12,6 @@ export interface ProjectUpdatePayload {
     description?: string | null
     is_public?: boolean | null
     status?: string | null
-    github_repo_url?: string | null
 }
 
 export function useProject() {

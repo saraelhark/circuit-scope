@@ -8,16 +8,15 @@ export interface ProjectFile {
 
 export interface Project {
   id: string
-  owner_id: string
   name: string
   description: string | null
   is_public: boolean
   status: string | null
-  github_repo_url: string | null
-  secret_link?: string | null
   created_at: string
   updated_at: string
   files: ProjectFile[]
+  views?: number
+  comments_count?: number
 }
 
 export interface ProjectListResponse {
@@ -62,7 +61,7 @@ export interface ProjectCreatePayload {
   name: string
   description?: string | null
   is_public?: boolean
-  github_repo_url?: string | null
+  owner_id?: string | null
 }
 
 export interface ProjectUpdatePayload {
@@ -70,7 +69,6 @@ export interface ProjectUpdatePayload {
   description?: string | null
   is_public?: boolean | null
   status?: string | null
-  github_repo_url?: string | null
 }
 
 export interface ListProjectsQuery {

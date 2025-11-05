@@ -86,7 +86,7 @@ class Project(TimestampMixin, Base):
     github_repo_url: Mapped[str | None] = mapped_column(String)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     secret_link: Mapped[str | None] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String, default="draft", nullable=False)
+    status: Mapped[str] = mapped_column(String, default="open", nullable=False)
 
     owner: Mapped[User] = relationship(back_populates="projects")
     reviews: Mapped[list["Review"]] = relationship(back_populates="project")

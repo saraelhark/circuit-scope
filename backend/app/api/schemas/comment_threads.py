@@ -10,46 +10,26 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class ThreadAnnotation(BaseModel):
-    """Annotation metadata describing supplemental drawing around a pin."""
+    """Annotation metadata describing a circular highlight around a point."""
 
-    tool: Literal["pin", "circle", "arrow"]
+    tool: Literal["circle"]
     data: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_annotation(self) -> "ThreadAnnotation":
-        if self.tool == "pin":
-            self.data = {}
-            return self
-
-        if self.tool == "circle":
-            radius = self.data.get("radius")
-            if radius is None:
-                raise ValueError("Circle annotations require a radius value.")
-            try:
-                radius_value = float(radius)
-            except (TypeError, ValueError) as exc:
-                raise ValueError("Circle radius must be a number.") from exc
-            if not 0 < radius_value <= 0.5:
-                raise ValueError("Circle radius must be between 0 and 0.5 (relative to image width).")
-            self.data = {"radius": radius_value}
-            return self
-
-        if self.tool == "arrow":
-            target_x = self.data.get("target_x")
-            target_y = self.data.get("target_y")
-            if target_x is None or target_y is None:
-                raise ValueError("Arrow annotations require target_x and target_y values.")
-            try:
-                tx = float(target_x)
-                ty = float(target_y)
-            except (TypeError, ValueError) as exc:
-                raise ValueError("Arrow targets must be numeric coordinates.") from exc
-            if not 0 <= tx <= 1 or not 0 <= ty <= 1:
-                raise ValueError("Arrow target coordinates must be between 0 and 1.")
-            self.data = {"target_x": tx, "target_y": ty}
-            return self
-
-        raise ValueError("Unsupported annotation tool")
+        radius = self.data.get("radius")
+        if radius is None:
+            raise ValueError("Circle annotations require a radius value.")
+        try:
+            radius_value = float(radius)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Circle radius must be a number.") from exc
+        if not 0 < radius_value <= 0.5:
+            raise ValueError(
+                "Circle radius must be between 0 and 0.5 (relative to image width)."
+            )
+        self.data = {"radius": radius_value}
+        return self
 
 
 class ThreadCommentBase(BaseModel):
@@ -63,13 +43,9 @@ class ThreadCommentBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_author_sources(self) -> "ThreadCommentBase":
-        if self.author_id is None and self.guest_name is None and self.guest_email is None:
-            msg = "Either author_id or guest guest_name/email must be provided."
-            raise ValueError(msg)
+        # Allow fully anonymous comments (no author_id, no guest name/email),
+        # but if guest identity is partially provided, require both fields.
         if self.guest_name is None and self.guest_email is not None:
-            msg = "Guest comments require both name and email."
-            raise ValueError(msg)
-        if self.guest_name is not None and self.guest_email is None:
             msg = "Guest comments require both name and email."
             raise ValueError(msg)
         return self

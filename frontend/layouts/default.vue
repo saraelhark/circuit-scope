@@ -1,23 +1,10 @@
-<script setup lang="ts">
-import { Button } from "~/components/ui/button"
-</script>
-
 <template>
   <div class="flex min-h-screen flex-col bg-background">
     <header class="border-b border-border bg-card/80 backdrop-blur">
-      <div class="container flex h-16 items-center justify-between">
-        <NuxtLink to="/" class="flex items-center gap-2 font-semibold">
-          <span class="text-lg">Circuit Scope</span>
-        </NuxtLink>
-
-
-        <div class="flex items-center gap-2">
-
-        </div>
-      </div>
+      <AppHeader />
     </header>
 
-    <main class="container flex-1 py-10">
+    <main class="container flex-1 py-4">
       <slot />
     </main>
 
@@ -28,3 +15,7 @@ import { Button } from "~/components/ui/button"
     </footer>
   </div>
 </template>
+
+<script setup lang="ts">
+useBackendUser()
+</script>

@@ -6,6 +6,6 @@
 import ProjectsList from "~/components/projects/ProjectsList.vue"
 
 useHead({
-  title: "Dashboard – Circuit Scope",
+  title: "Circuit Scope - Home",
 })
 </script>

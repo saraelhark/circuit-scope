@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 class ProjectBase(BaseModel):
     name: str = Field(..., max_length=255)
     description: str | None = Field(default=None)
-    is_public: bool = False
+    is_public: bool = True
     status: str | None = Field(default=None, max_length=50)
     github_repo_url: str | None = Field(default=None, max_length=500)
 

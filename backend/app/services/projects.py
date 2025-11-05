@@ -53,7 +53,7 @@ async def create_project(
         name=payload.name,
         description=payload.description,
         is_public=payload.is_public,
-        status=payload.status or "draft",
+        status=payload.status or "open",
         github_repo_url=payload.github_repo_url,
         secret_link=None,
     )

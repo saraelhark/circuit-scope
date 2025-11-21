@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 import logging
+import os
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import Select, func, select
@@ -18,7 +19,11 @@ from app.api.schemas.projects import (
     ProjectResponse,
     ProjectUpdate,
 )
-from app.services.previews import process_project_archive
+from app.services.previews import (
+    MAX_KICAD_ARCHIVE_SIZE_BYTES,
+    MAX_KICAD_ARCHIVE_SIZE_MB,
+    process_project_archive,
+)
 from app.services.storage.base import StorageService
 from db.models import Project, ProjectFile, User
 
@@ -74,6 +79,25 @@ async def create_project(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only KiCad ZIP archives are supported",
+            )
+
+        file_obj = upload_file.file
+        size_bytes: int | None = None
+        try:
+            file_obj.seek(0, os.SEEK_END)
+            size_bytes = file_obj.tell()
+        except (OSError, AttributeError):
+            size_bytes = None
+        finally:
+            try:
+                file_obj.seek(0)
+            except (OSError, AttributeError):
+                pass
+
+        if size_bytes is not None and size_bytes > MAX_KICAD_ARCHIVE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"KiCad archive must be {MAX_KICAD_ARCHIVE_SIZE_MB} MB or smaller",
             )
 
         storage_path = f"projects/{project.id}/{filename}"

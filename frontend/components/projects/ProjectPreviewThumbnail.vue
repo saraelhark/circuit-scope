@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import type { PreviewAsset } from "~/types/api/projects"
+import type { PreviewAsset, ProjectPreviewResponse } from "~/types/api/projects"
 import { useProject } from "~/composables/useProjects"
 
 const props = defineProps<{
@@ -12,7 +12,8 @@ const projectId = computed(() => props.projectId)
 
 const { getProjectPreviews } = useProject()
 
-const { data, status } = useAsyncData(
+const { data, status } = useAsyncData<ProjectPreviewResponse>(
+  `project-${projectId.value}-previews-thumbnail`,
   () => getProjectPreviews(projectId.value),
   {
     server: false,
@@ -29,7 +30,9 @@ const selectedAsset = computed<PreviewAsset | null>(() => {
   const layouts = previews.layouts ?? []
   const schematics = previews.schematics ?? []
 
-  const topLayout = layouts.find((layout) => /top|front/i.test(layout.title ?? layout.filename)) ?? layouts[0]
+  const topLayout =
+    layouts.find((layout) => /top|front/i.test(layout.title ?? layout.id ?? layout.filename)) ?? layouts[0]
+
   if (topLayout) {
     return topLayout
   }

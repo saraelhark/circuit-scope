@@ -30,6 +30,8 @@ _MODEL_DIR: Final = "models"
 _INDEX_FILENAME: Final = "index.json"
 _SAFE_ASSET_SUFFIXES: Final = {".svg", ".glb"}
 _SAFE_SOURCE_SUFFIXES: Final = {".kicad_sch", ".kicad_pcb", ".kicad_pro", ".kicad_prl"}
+MAX_KICAD_ARCHIVE_SIZE_MB: Final = 30
+MAX_KICAD_ARCHIVE_SIZE_BYTES: Final = MAX_KICAD_ARCHIVE_SIZE_MB * 1024 * 1024
 
 _SVG_NAMESPACE: Final = "http://www.w3.org/2000/svg"
 ET.register_namespace("", _SVG_NAMESPACE)

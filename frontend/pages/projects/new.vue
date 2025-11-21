@@ -29,6 +29,9 @@ const router = useRouter()
 const { createProject } = useProject()
 const { backendUser } = useBackendUser()
 
+const MAX_ARCHIVE_SIZE_MB = 30
+const MAX_ARCHIVE_SIZE_BYTES = MAX_ARCHIVE_SIZE_MB * 1024 * 1024
+
 const form = reactive({
   name: "",
   description: "",
@@ -40,7 +43,17 @@ const submissionError = ref<string | null>(null)
 
 function onFileChange(event: Event) {
   const target = event.target as HTMLInputElement
-  file.value = target.files?.[0] ?? null
+  const selected = target.files?.[0] ?? null
+
+  submissionError.value = null
+
+  if (selected && selected.size > MAX_ARCHIVE_SIZE_BYTES) {
+    file.value = null
+    submissionError.value = `KiCad archive must be ${MAX_ARCHIVE_SIZE_MB} MB or smaller.`
+    return
+  }
+
+  file.value = selected
 }
 
 async function handleSubmit() {
@@ -113,7 +126,8 @@ async function handleSubmit() {
               <Label for="file">Project archive</Label>
               <Input id="file" type="file" accept=".zip" @change="onFileChange" />
               <p class="text-sm text-muted-foreground">
-                Upload a KiCad ZIP archive. Only <code>.zip</code> files are supported.
+                Upload a KiCad ZIP archive (max {{ MAX_ARCHIVE_SIZE_MB }} MB).
+                Only <code>.zip</code> files are supported.
               </p>
               <p v-if="file" class="text-xs text-muted-foreground">
                 Selected file: {{ file?.name }}

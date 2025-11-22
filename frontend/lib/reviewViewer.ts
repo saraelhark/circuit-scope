@@ -24,25 +24,43 @@ export function buildViewerViews(
         })
     }
 
-    const topLayout =
-        layouts.find((layout) => /top|front/i.test(layout.title ?? layout.id)) ?? layouts[0]
-    const bottomLayout = layouts.find((layout) => /bottom|back/i.test(layout.title ?? layout.id))
+    const topLayout = layouts.find((layout) => layout.id === "front") || layouts.find((layout) => /top|front/i.test(layout.title ?? ""))
+    const bottomLayout = layouts.find((layout) => layout.id === "back") || layouts.find((layout) => /bottom|back/i.test(layout.title ?? ""))
+
+    // Find inner layers
+    const innerLayers = layouts.filter((layout) => layout.id.startsWith("inner-"))
+    // Sort them by index just in case (inner-1, inner-2, ...)
+    innerLayers.sort((a, b) => {
+        const aIdx = parseInt(a.id.split("-")[1] || "0")
+        const bIdx = parseInt(b.id.split("-")[1] || "0")
+        return aIdx - bIdx
+    })
 
     views.push({
         id: "pcb-top",
         label: "PCB Top",
         asset: topLayout ?? null,
         fallbackMessage: layouts.length
-            ? "No top-side layout detected; showing first layout available."
+            ? "No top-side layout detected."
             : "No PCB layout previews available.",
+    })
+
+    // Add inner layers
+    innerLayers.forEach((layer) => {
+        views.push({
+            id: layer.id,
+            label: layer.title || `Inner ${layer.id}`,
+            asset: layer,
+            fallbackMessage: "Layer preview not available.",
+        })
     })
 
     views.push({
         id: "pcb-bottom",
         label: "PCB Bottom",
-        asset: bottomLayout ?? (layouts.length > 1 ? layouts[1] : null),
-        fallbackMessage: layouts.length > 1
-            ? "No bottom-side layout detected; showing alternative layout."
+        asset: bottomLayout ?? null,
+        fallbackMessage: layouts.length
+            ? "No bottom-side layout detected."
             : "No additional PCB layout previews available.",
     })
 

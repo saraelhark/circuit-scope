@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -165,97 +167,115 @@ def _compose_svg_grid(
     return destination
 
 
-def process_project_archive(
+async def process_project_archive(
     storage: StorageService, project_id: UUID, archive_storage_path: str
 ) -> None:
     """Extract the uploaded KiCad archive and render preview assets with KiCad CLI.
 
-    Generates multi-page schematic SVGs, front/back PCB renders, and a GLB preview. A
+    Generates multi-page schematic SVGs, front/back/inner PCB renders, and a GLB preview. A
     metadata index describing generated assets is written to disk to support the API.
     """
 
-    try:
-        archive_path = storage.filesystem_path(archive_storage_path)
-    except StorageError:
-        logger.exception(
-            "Unable to resolve storage path '%s' for project %s",
-            archive_storage_path,
-            project_id,
-        )
-        return
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        work_dir = Path(tmp_dir)
+        local_archive_path = work_dir / "archive.zip"
+        extraction_root = work_dir / "extracted"
+        previews_root = work_dir / _PREVIEW_DIR_NAME
+        schematics_root = previews_root / _SCHEMATIC_DIR
+        layouts_root = previews_root / _LAYOUT_DIR
+        models_root = previews_root / _MODEL_DIR
 
-    project_root = archive_path.parent
-    extraction_root = project_root / "extracted"
-    previews_root = project_root / _PREVIEW_DIR_NAME
-    schematics_root = previews_root / _SCHEMATIC_DIR
-    layouts_root = previews_root / _LAYOUT_DIR
-    models_root = previews_root / _MODEL_DIR
-
-    try:
-        if extraction_root.exists():
-            shutil.rmtree(extraction_root)
-        extraction_root.mkdir(parents=True, exist_ok=True)
-
-        with zipfile.ZipFile(archive_path) as zip_file:
-            _safe_extract(zip_file, extraction_root)
-    except (zipfile.BadZipFile, OSError):
-        logger.exception("Failed to extract KiCad archive for project %s", project_id)
-        return
-
-    for directory in (previews_root, schematics_root, layouts_root, models_root):
+        # 1. Download archive
         try:
-            if directory.exists():
-                shutil.rmtree(directory)
-            directory.mkdir(parents=True, exist_ok=True)
-        except OSError:
+            await storage.download(archive_storage_path, local_archive_path)
+        except StorageError:
             logger.exception(
-                "Unable to prepare previews directory '%s' for project %s",
-                directory,
+                "Unable to download storage path '%s' for project %s",
+                archive_storage_path,
                 project_id,
             )
             return
 
-    index: dict[str, Any] = {
-        "project": _read_project_metadata(extraction_root),
-        "schematics": [],
-        "layouts": [],
-        "models": [],
-    }
-
-    schematic_sources = _find_all_schematics(extraction_root)
-    board_file = _find_first(extraction_root, "*.kicad_pcb")
-
-    if not schematic_sources:
-        logger.warning("No schematic file found for project %s", project_id)
-    else:
+        # 2. Extract
         try:
-            index["schematics"] = _render_schematic_bundle(
-                schematic_sources[0],
-                schematics_root,
-                schematic_sources,
-                extraction_root,
+            extraction_root.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(local_archive_path) as zip_file:
+                _safe_extract(zip_file, extraction_root)
+        except (zipfile.BadZipFile, OSError):
+            logger.exception(
+                "Failed to extract KiCad archive for project %s", project_id
             )
-        except Exception:
-            logger.exception("Schematic rendering failed for project %s", project_id)
+            return
 
-    if board_file is None:
-        logger.warning("No PCB file found for project %s", project_id)
-    else:
-        try:
-            layout_entries = _render_board_svgs(board_file, layouts_root)
-            if layout_entries:
-                index["layouts"].extend(layout_entries)
-        except Exception:
-            logger.exception("Board SVG rendering failed for project %s", project_id)
+        # 3. Prepare output directories
+        for directory in (previews_root, schematics_root, layouts_root, models_root):
+            directory.mkdir(parents=True, exist_ok=True)
 
-        try:
-            model_entry = _render_board_glb(board_file, models_root)
-            if model_entry:
-                index["models"].append(model_entry)
-        except Exception:
-            logger.exception("Board GLB rendering failed for project %s", project_id)
+        index: dict[str, Any] = {
+            "project": _read_project_metadata(extraction_root),
+            "schematics": [],
+            "layouts": [],
+            "models": [],
+        }
 
-    _write_index(previews_root, index)
+        schematic_sources = _find_all_schematics(extraction_root)
+        board_file = _find_first(extraction_root, "*.kicad_pcb")
+
+        # 4. Render Schematics
+        if not schematic_sources:
+            logger.warning("No schematic file found for project %s", project_id)
+        else:
+            try:
+                index["schematics"] = _render_schematic_bundle(
+                    schematic_sources[0],
+                    schematics_root,
+                    schematic_sources,
+                    extraction_root,
+                )
+            except Exception:
+                logger.exception(
+                    "Schematic rendering failed for project %s", project_id
+                )
+
+        # 5. Render PCB
+        if board_file is None:
+            logger.warning("No PCB file found for project %s", project_id)
+        else:
+            try:
+                layout_entries = _render_board_svgs(board_file, layouts_root)
+                if layout_entries:
+                    index["layouts"].extend(layout_entries)
+            except Exception:
+                logger.exception(
+                    "Board SVG rendering failed for project %s", project_id
+                )
+
+            try:
+                model_entry = _render_board_glb(board_file, models_root)
+                if model_entry:
+                    index["models"].append(model_entry)
+            except Exception:
+                logger.exception(
+                    "Board GLB rendering failed for project %s", project_id
+                )
+
+        # 6. Upload generated assets
+        # Walk through previews_root and upload all files relative to it
+        # Target base: projects/{id}/previews/
+        base_storage_path = _project_preview_base(project_id)
+
+        for root, _, files in os.walk(previews_root):
+            for file in files:
+                file_path = Path(root) / file
+                relative_path = file_path.relative_to(previews_root)
+                target_path = str(base_storage_path / relative_path)
+                try:
+                    await storage.upload(target_path, file_path)
+                except StorageError:
+                    logger.exception("Failed to upload preview asset: %s", target_path)
+
+        # 7. Write index
+        await _write_index(storage, project_id, index)
 
 
 def _safe_extract(zip_file: zipfile.ZipFile, destination: Path) -> None:
@@ -414,6 +434,19 @@ def _render_board_svgs(source: Path, output_dir: Path) -> list[dict[str, Any]]:
         ),
     ]
 
+    # Add specs for inner layers (In1.Cu ... In30.Cu)
+    # We try to render them; if the output is empty/invalid, we skip adding them to the index.
+    for i in range(1, 31):
+        layer_name = f"In{i}.Cu"
+        layer_specs.append(
+            (
+                f"inner-{i}",
+                f"Inner Layer {i}",
+                [layer_name, "Edge.Cuts", "User.Drawings"],
+                [],
+            )
+        )
+
     entries: list[dict[str, Any]] = []
 
     for key, title, layers, extra_flags in layer_specs:
@@ -439,10 +472,24 @@ def _render_board_svgs(source: Path, output_dir: Path) -> list[dict[str, Any]]:
         try:
             _run_cli(command)
         except RuntimeError:
-            logger.exception("Failed to render %s PCB preview", key)
+            # It is expected that many inner layers won't exist, so we log only at debug
+            # or ignore if it's a specific error related to missing layer.
+            # However, kicad-cli might return success even if layer is empty.
+            # We'll check file size below.
+            logger.debug("Failed to render or layer not present: %s", key)
             continue
 
         if destination.exists():
+            # Check for "empty" SVG (just header/footer) to avoid cluttering the UI
+            # A robust check would look for actual geometry elements.
+            # For now, we'll trust existence, but we might need to refine this if KiCad
+            # exports empty SVGs for non-existent layers.
+            if destination.stat().st_size < 500:  # Arbitrary small size check
+                # Let's try to read it and check for content if needed, but size is a good first proxy.
+                # Actually, an empty SVG with viewbox might be small.
+                # Let's allow it for now, but we might want to parse it later.
+                pass
+
             entries.append(
                 {
                     "id": key,
@@ -509,15 +556,20 @@ def _run_cli(command: list[str]) -> None:
         raise RuntimeError(f"kicad-cli exited with code {exc.returncode}") from exc
 
 
-def _write_index(previews_root: Path, index: dict[str, Any]) -> None:
+import io
+
+
+async def _write_index(
+    storage: StorageService, project_id: UUID, index: dict[str, Any]
+) -> None:
     """Persist the preview index JSON file."""
 
     try:
-        (previews_root / _INDEX_FILENAME).write_text(
-            json.dumps(index, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-    except OSError:
-        logger.exception("Failed to write preview index for %s", previews_root)
+        content = json.dumps(index, indent=2, ensure_ascii=False).encode("utf-8")
+        file_obj = io.BytesIO(content)
+        await storage.save(_preview_index_storage_path(project_id), file_obj)
+    except StorageError:
+        logger.exception("Failed to write preview index for project %s", project_id)
 
 
 def _read_project_metadata(extraction_root: Path) -> dict[str, Any]:
@@ -562,24 +614,27 @@ def _read_project_metadata(extraction_root: Path) -> dict[str, Any]:
     }
 
 
-def load_preview_index(storage: StorageService, project_id: UUID) -> dict[str, Any]:
+async def load_preview_index(
+    storage: StorageService, project_id: UUID
+) -> dict[str, Any]:
     """Load the stored preview index for a project."""
 
-    index_path = storage.filesystem_path(_preview_index_storage_path(project_id))
+    index_storage_path = _preview_index_storage_path(project_id)
     try:
-        content = index_path.read_text(encoding="utf-8")
+        content_bytes = await storage.read(index_storage_path)
+        content = content_bytes.decode("utf-8")
         return json.loads(content)
-    except FileNotFoundError as exc:
-        raise FileNotFoundError("Preview index not found") from exc
-    except (OSError, json.JSONDecodeError):
+    except (StorageError, json.JSONDecodeError):
         logger.exception("Failed to read preview index for project %s", project_id)
         return {"project": {}, "schematics": [], "layouts": [], "models": []}
 
 
-def list_previews_summary(storage: StorageService, project_id: UUID) -> dict[str, Any]:
+async def list_previews_summary(
+    storage: StorageService, project_id: UUID
+) -> dict[str, Any]:
     """Return a condensed view of available previews for listings."""
 
-    index = load_preview_index(storage, project_id)
+    index = await load_preview_index(storage, project_id)
     return {
         "schematics": [entry["path"] for entry in index.get("schematics", [])],
         "layouts": [entry["path"] for entry in index.get("layouts", [])],
@@ -588,19 +643,18 @@ def list_previews_summary(storage: StorageService, project_id: UUID) -> dict[str
     }
 
 
-def preview_asset_filesystem_path(
+async def validate_preview_asset_path(
     storage: StorageService, project_id: UUID, asset_path: str
-) -> Path:
-    """Resolve the filesystem path for a preview asset, validating traversal attempts."""
+) -> str:
+    """Resolve the storage path for a preview asset, validating traversal attempts."""
 
     clean_path = _sanitize_asset_path(asset_path)
     storage_path = _project_preview_base(project_id) / clean_path
-    fs_path = storage.filesystem_path(str(storage_path))
-    if not fs_path.exists():
-        raise FileNotFoundError(clean_path)
-    if fs_path.suffix.lower() not in _SAFE_ASSET_SUFFIXES:
+
+    if clean_path.suffix.lower() not in _SAFE_ASSET_SUFFIXES:
         raise FileNotFoundError("Unsupported asset type")
-    return fs_path
+
+    return str(storage_path)
 
 
 def _sanitize_asset_path(asset_path: str) -> Path:

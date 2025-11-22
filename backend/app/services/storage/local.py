@@ -48,6 +48,40 @@ class LocalStorage(StorageService):
 
         return path
 
+    async def upload(self, path: str, file_path: Path) -> str:
+        """Upload a local file to the storage."""
+        destination = self.filesystem_path(path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        def _copy() -> None:
+            with file_path.open("rb") as src, destination.open("wb") as dst:
+                import shutil
+
+                shutil.copyfileobj(src, dst)
+
+        try:
+            await asyncio.to_thread(_copy)
+        except Exception as exc:
+            raise StorageError("Failed to upload file") from exc
+
+        return path
+
+    async def download(self, path: str, destination: Path) -> None:
+        """Download the file from storage to a local destination."""
+        source = self.filesystem_path(path)
+        if not source.exists():
+            raise StorageError(f"File not found: {path}")
+
+        def _copy() -> None:
+            import shutil
+
+            shutil.copy(source, destination)
+
+        try:
+            await asyncio.to_thread(_copy)
+        except Exception as exc:
+            raise StorageError("Failed to download file") from exc
+
     async def delete(self, path: str) -> None:
         target = self.filesystem_path(path)
         if not target.exists():
@@ -60,6 +94,19 @@ class LocalStorage(StorageService):
             await asyncio.to_thread(_delete)
         except Exception as exc:
             raise StorageError("Failed to delete file") from exc
+
+    async def read(self, path: str) -> bytes:
+        source = self.filesystem_path(path)
+        if not source.exists():
+            raise StorageError(f"File not found: {path}")
+
+        def _read() -> bytes:
+            return source.read_bytes()
+
+        try:
+            return await asyncio.to_thread(_read)
+        except Exception as exc:
+            raise StorageError("Failed to read file") from exc
 
     async def get_url(self, path: str) -> str | None:
         if not self._public_base_url:

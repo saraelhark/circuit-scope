@@ -46,10 +46,11 @@ async def run_project_processing_task(
             project.processing_status = "processing"
             await session.commit()
 
-            # Run CPU-bound/blocking processing in a separate thread
-            await asyncio.to_thread(
-                process_project_archive, storage, project_id, storage_path
-            )
+            # Run processing task
+            # Note: valid blocking operations (like zip extraction/subprocess) inside this async
+            # function will briefly block the event loop. For high-load production, consider
+            # offloading to a worker queue (e.g. Celery/Arq).
+            await process_project_archive(storage, project_id, storage_path)
 
             # Re-fetch project to avoid detached instance issues if needed,
             # but session should be alive.

@@ -17,7 +17,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response, RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,9 +40,9 @@ from app.services.projects import (
 )
 from app.services.previews import (
     load_preview_index,
-    preview_asset_filesystem_path,
+    validate_preview_asset_path,
 )
-from app.services.storage.base import StorageService
+from app.services.storage.base import StorageService, StorageError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ async def get_project_previews_endpoint(
     await get_project(session, project_id)
 
     try:
-        index = load_preview_index(storage, project_id)
+        index = await load_preview_index(storage, project_id)
     except FileNotFoundError:
         index = {"project": {}, "schematics": [], "layouts": [], "models": []}
 
@@ -198,7 +198,9 @@ async def get_project_preview_asset(
     await get_project(session, project_id)
 
     try:
-        fs_path = preview_asset_filesystem_path(storage, project_id, asset_path)
+        storage_path = await validate_preview_asset_path(
+            storage, project_id, asset_path
+        )
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Preview not available"
@@ -210,10 +212,26 @@ async def get_project_preview_asset(
             detail="Unable to load preview",
         ) from exc
 
-    media_type = _MEDIA_TYPES.get(fs_path.suffix.lower())
+    import pathlib
+
+    suffix = pathlib.Path(storage_path).suffix.lower()
+    media_type = _MEDIA_TYPES.get(suffix)
     if media_type is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Unsupported preview format"
         )
 
-    return FileResponse(fs_path, media_type=media_type)
+    # Try to get a redirect URL first
+    # redirect_url = await storage.get_url(storage_path)
+    # if redirect_url:
+    #     return RedirectResponse(url=redirect_url)
+
+    # Fallback to streaming content
+    try:
+        content = await storage.read(storage_path)
+        return Response(content=content, media_type=media_type)
+    except StorageError as exc:
+        logger.error("Failed to read asset from storage: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found"
+        ) from exc

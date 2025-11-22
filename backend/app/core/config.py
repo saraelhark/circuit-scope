@@ -34,8 +34,15 @@ class Settings(BaseSettings):
         default=None, description="Base URL for serving stored files"
     )
 
+    storage_s3_bucket: str | None = None
+    storage_s3_region: str | None = None
+    storage_s3_access_key: str | None = None
+    storage_s3_secret_key: str | None = None
+    storage_s3_endpoint: str | None = None
+
     kicad_cli_path: str = Field(
-        default="kicad-cli", description="Executable used for KiCad command-line operations"
+        default="kicad-cli",
+        description="Executable used for KiCad command-line operations",
     )
     kicad_cli_timeout_seconds: int = Field(
         default=120,

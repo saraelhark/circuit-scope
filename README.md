@@ -1,6 +1,6 @@
 # Circuit Scope
 
-# WIP: still implementing the basic functionality and setting up the structure.
+## WIP: still implementing the basic functionality and setting up the structure
 
 ## Backend container
 
@@ -13,9 +13,15 @@
 
    This starts:
 
-   - `backend`: FastAPI app served by uvicorn on http://localhost:8000
+   - `backend`: FastAPI app served by uvicorn on <http://localhost:8000>
 
    Volumes mount the backend source code (`./backend/app`) for live reload and `./backend/var/storage` for generated previews.
+
+   Clean build
+
+   ```bash
+   docker compose build --no-cache
+   ```
 
 3. To stop the stack:
 
@@ -34,7 +40,6 @@
 ```bash
 docker compose run --rm backend alembic upgrade head
 ```
-
 
 ## KiCad CLI quick reference
 
@@ -89,6 +94,9 @@ General tips:
 - Add `--define-var KEY=VALUE` to override project variables on the fly.
 - Use `--theme <name>` if you rely on a custom color theme saved in your KiCad config.
 
-
 ## Setup local db for development TBD
 
+## Current Limitations and notes
+
+- Only default library components are gonna be in the 3d model
+- Newer KiCAD CLI (currently 9) support old KiCAD versions (the opposite is not true).

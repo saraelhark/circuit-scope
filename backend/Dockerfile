@@ -2,49 +2,51 @@
 
 FROM ubuntu:24.04
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 ENV DEBIAN_FRONTEND=noninteractive \
+    # Python/uv settings
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    VIRTUAL_ENV=/opt/venv \
-    KICAD9_3DMODEL_DIR=/usr/share/kicad/3dmodels
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    # App settings
+    KICAD9_3DMODEL_DIR=/usr/share/kicad/3dmodels \
+    PATH="/opt/venv/bin:$PATH"
 
-# Base system packages + Python runtime
+# Base system packages + KiCad
+# Combined to reduce layers and cleanup in one go
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
-        curl \
-        git \
-        gnupg \
         software-properties-common \
         python3 \
-        python3-venv \
-        python3-pip \
-        python3-dev \
-        build-essential && \
-    rm -rf /var/lib/apt/lists/*
-
-# KiCad CLI tools (via official PPA for KiCad 9) + official 3D model libraries
-RUN add-apt-repository -y ppa:kicad/kicad-9.0-releases && \
+        python3-dev && \
+    add-apt-repository -y ppa:kicad/kicad-9.0-releases && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         kicad \
         kicad-packages3d && \
+    # Cleanup build deps
+    apt-get remove -y software-properties-common && \
+    apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
-
-RUN python3 -m venv "$VIRTUAL_ENV"
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-RUN pip install --no-cache-dir --upgrade pip
 
 WORKDIR /app
 
-# Install backend dependencies first for better layer caching
-COPY pyproject.toml uv.lock /app/
-COPY app /app/app
-RUN pip install --no-cache-dir .
+# Install dependencies
+# Copy only lock files first for caching
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy application code
-COPY . /app
+COPY . .
+
+# Install the project itself
+RUN uv sync --frozen --no-dev
 
 # Storage directory for generated previews
 RUN mkdir -p /app/var/storage

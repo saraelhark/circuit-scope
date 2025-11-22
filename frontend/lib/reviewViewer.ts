@@ -27,9 +27,7 @@ export function buildViewerViews(
     const topLayout = layouts.find((layout) => layout.id === "front") || layouts.find((layout) => /top|front/i.test(layout.title ?? ""))
     const bottomLayout = layouts.find((layout) => layout.id === "back") || layouts.find((layout) => /bottom|back/i.test(layout.title ?? ""))
 
-    // Find inner layers
     const innerLayers = layouts.filter((layout) => layout.id.startsWith("inner-"))
-    // Sort them by index just in case (inner-1, inner-2, ...)
     innerLayers.sort((a, b) => {
         const aIdx = parseInt(a.id.split("-")[1] || "0")
         const bIdx = parseInt(b.id.split("-")[1] || "0")
@@ -45,7 +43,6 @@ export function buildViewerViews(
             : "No PCB layout previews available.",
     })
 
-    // Add inner layers
     innerLayers.forEach((layer) => {
         views.push({
             id: layer.id,

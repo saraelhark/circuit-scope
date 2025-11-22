@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 from typing import Any
@@ -46,23 +45,15 @@ async def run_project_processing_task(
             project.processing_status = "processing"
             await session.commit()
 
-            # Run processing task
-            # Note: valid blocking operations (like zip extraction/subprocess) inside this async
-            # function will briefly block the event loop. For high-load production, consider
-            # offloading to a worker queue (e.g. Celery/Arq).
             await process_project_archive(storage, project_id, storage_path)
 
-            # Re-fetch project to avoid detached instance issues if needed,
-            # but session should be alive.
             project.processing_status = "completed"
             project.processing_error = None
             await session.commit()
 
         except Exception as exc:
             logger.exception("Processing failed for project %s", project_id)
-            # Ensure we can update the status even if the previous commit failed
             try:
-                # We might need a rollback if the session is in a bad state
                 await session.rollback()
                 project = await session.get(Project, project_id)
                 if project:
@@ -160,11 +151,9 @@ async def create_project(
         session.add(project_file)
         upload_result = {"filename": filename, "storage_path": storage_path}
 
-        # Note: Processing is now handled via background task initiated by the route handler
-
     try:
         await session.commit()
-    except IntegrityError as exc:  # noqa: ASYNC100
+    except IntegrityError as exc:
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create project"
@@ -181,6 +170,7 @@ async def list_projects(
     size: int,
     only_public: bool | None = None,
     owner_id: UUID | None = None,
+    status: str | None = None,
 ) -> ProjectListResponse:
     """List projects."""
     if page < 1 or size < 1:
@@ -197,10 +187,13 @@ async def list_projects(
 
     if only_public is not None:
         query = query.where(Project.is_public.is_(only_public))
-    total_query = select(func.count(Project.id))
+    total_query = select(func.count(Project.id))  # pylint: disable=not-callable
     if owner_id is not None:
         query = query.where(Project.owner_id == owner_id)
         total_query = total_query.where(Project.owner_id == owner_id)
+    if status is not None:
+        query = query.where(Project.status == status)
+        total_query = total_query.where(Project.status == status)
     if only_public is not None:
         total_query = total_query.where(Project.is_public.is_(only_public))
 
@@ -224,7 +217,7 @@ async def list_projects(
 
 async def get_project(session: AsyncSession, project_id: UUID) -> ProjectResponse:
     """Get a project."""
-    project = await _get_project_model(session, project_id)
+    project = await get_project_orm_model(session, project_id)
     return ProjectResponse.model_validate(project, from_attributes=True)
 
 
@@ -234,7 +227,7 @@ async def update_project(
     payload: ProjectUpdate,
 ) -> ProjectResponse:
     """Update a project."""
-    project = await _get_project_model(session, project_id)
+    project = await get_project_orm_model(session, project_id)
 
     for field, value in payload.model_dump(
         exclude_unset=True, exclude_none=True
@@ -252,7 +245,7 @@ async def delete_project(
     project_id: UUID,
 ) -> None:
     """Delete a project."""
-    project = await _get_project_model(session, project_id)
+    project = await get_project_orm_model(session, project_id)
 
     file_paths = [file.storage_path for file in project.files]
 
@@ -266,7 +259,7 @@ async def delete_project(
             continue
 
 
-async def _get_project_model(session: AsyncSession, project_id: UUID) -> Project:
+async def get_project_orm_model(session: AsyncSession, project_id: UUID) -> Project:
     """Get a project model."""
     result = await session.execute(
         select(Project)
@@ -279,3 +272,13 @@ async def _get_project_model(session: AsyncSession, project_id: UUID) -> Project
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
     return project
+
+
+async def ensure_project_exists(session: AsyncSession, project_id: UUID) -> None:
+    """Ensure a project exists."""
+    query = select(Project.id).where(Project.id == project_id)
+    result = await session.execute(query)
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )

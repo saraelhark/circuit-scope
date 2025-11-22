@@ -19,9 +19,7 @@ class Settings(BaseSettings):
 
     database_url: str
 
-    cors_origins: list[AnyHttpUrl] | None = Field(
-        default=None, description="Allowed CORS origins"
-    )
+    cors_origins: list[AnyHttpUrl] = Field(description="Allowed CORS origins")
     cors_allow_credentials: bool = True
     cors_allow_methods: list[str] = Field(default_factory=lambda: ["*"])
     cors_allow_headers: list[str] = Field(default_factory=lambda: ["*"])
@@ -52,7 +50,8 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def split_cors_origins(cls, value: str | list[str] | None) -> list[str] | None:
+    def split_cors_origins(cls, value: str | list[str]) -> list[str]:
+        """Split a comma-separated string of origins into a list."""
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
@@ -60,6 +59,7 @@ class Settings(BaseSettings):
     @field_validator("storage_local_base_path", mode="before")
     @classmethod
     def convert_storage_path(cls, value: str | Path) -> Path:
+        """Convert a string path to a Path object."""
         if isinstance(value, Path):
             return value
         return Path(value).expanduser().resolve()

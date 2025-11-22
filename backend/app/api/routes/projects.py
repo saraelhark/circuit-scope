@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 from uuid import UUID
 from typing import Any
 
@@ -17,7 +18,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse, Response, RedirectResponse
+from fastapi.responses import Response
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,7 +68,7 @@ async def create_project_endpoint(
     logger.info("Attempting to create project: %s", project_data)
     try:
         payload = ProjectCreate.model_validate_json(project_data)
-    except ValidationError as exc:  # pragma: no cover - request validation path
+    except ValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()
         ) from exc
@@ -93,12 +94,18 @@ async def list_projects_endpoint(
     size: int = 20,
     only_public: bool | None = None,
     owner_id: UUID | None = None,
+    status: str | None = None,
     session: AsyncSession = Depends(get_db_session),
 ) -> ProjectListResponse:
     """List all projects."""
     logger.info("Attempting to list projects")
     return await list_projects(
-        session, page=page, size=size, only_public=only_public, owner_id=owner_id
+        session,
+        page=page,
+        size=size,
+        only_public=only_public,
+        owner_id=owner_id,
+        status=status,
     )
 
 
@@ -150,10 +157,6 @@ async def get_project_previews_endpoint(
     def build_asset_entry(entry: dict[str, Any]) -> dict[str, Any]:
         asset_path = entry.get("path")
 
-        # Return a relative path for assets so that, in development, the frontend
-        # dev server proxy keeps requests on the same origin (avoiding CORS
-        # issues for binary assets like GLB). The router prefix (e.g. /api/v1)
-        # is already included via the mounted router + app prefix.
         url: str | None = None
         if asset_path:
             generated_url = request.url_for(
@@ -198,9 +201,7 @@ async def get_project_preview_asset(
     await get_project(session, project_id)
 
     try:
-        storage_path = await validate_preview_asset_path(
-            storage, project_id, asset_path
-        )
+        storage_path = await validate_preview_asset_path(project_id, asset_path)
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Preview not available"
@@ -212,8 +213,6 @@ async def get_project_preview_asset(
             detail="Unable to load preview",
         ) from exc
 
-    import pathlib
-
     suffix = pathlib.Path(storage_path).suffix.lower()
     media_type = _MEDIA_TYPES.get(suffix)
     if media_type is None:
@@ -221,12 +220,6 @@ async def get_project_preview_asset(
             status_code=status.HTTP_404_NOT_FOUND, detail="Unsupported preview format"
         )
 
-    # Try to get a redirect URL first
-    # redirect_url = await storage.get_url(storage_path)
-    # if redirect_url:
-    #     return RedirectResponse(url=redirect_url)
-
-    # Fallback to streaming content
     try:
         content = await storage.read(storage_path)
         return Response(content=content, media_type=media_type)

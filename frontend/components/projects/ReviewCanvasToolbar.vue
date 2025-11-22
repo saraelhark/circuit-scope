@@ -1,3 +1,31 @@
+<script setup lang="ts">
+import type { ViewerView } from "~/types/viewer"
+
+type Tool = "pan" | "circle"
+
+interface Props {
+    views: ViewerView[]
+    currentViewId: string
+    selectedTool: Tool
+}
+
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+    (e: "select-view", viewId: string): void
+    (e: "select-tool", tool: Tool): void
+    (e: "zoom-in"): void
+    (e: "zoom-out"): void
+    (e: "reset-zoom"): void
+    (e: "flip-view"): void
+}>()
+
+const toolOptions: { label: string; value: Tool }[] = [
+    { label: "Pan", value: "pan" },
+    { label: "Circle", value: "circle" },
+]
+</script>
+
 <template>
     <div class="absolute left-3 top-3 z-20 flex gap-2 rounded-lg border bg-card/90 px-4 py-2 backdrop-blur">
         <button v-for="view in props.views" :key="view.id" type="button"
@@ -28,31 +56,3 @@
         </div>
     </div>
 </template>
-
-<script setup lang="ts">
-import type { ViewerView } from "~/types/viewer"
-
-type Tool = "pan" | "circle"
-
-interface Props {
-    views: ViewerView[]
-    currentViewId: string
-    selectedTool: Tool
-}
-
-const props = defineProps<Props>()
-
-const emit = defineEmits<{
-    (e: "select-view", viewId: string): void
-    (e: "select-tool", tool: Tool): void
-    (e: "zoom-in"): void
-    (e: "zoom-out"): void
-    (e: "reset-zoom"): void
-    (e: "flip-view"): void
-}>()
-
-const toolOptions: { label: string; value: Tool }[] = [
-    { label: "Pan", value: "pan" },
-    { label: "Circle", value: "circle" },
-]
-</script>

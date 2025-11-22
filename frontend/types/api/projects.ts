@@ -78,4 +78,5 @@ export interface ListProjectsQuery {
   size?: number
   only_public?: boolean
   owner_id?: string
+  status?: string
 }

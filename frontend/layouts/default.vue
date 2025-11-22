@@ -1,3 +1,7 @@
+<script setup lang="ts">
+useBackendUser()
+</script>
+
 <template>
   <div class="flex min-h-screen flex-col bg-background">
     <header class="border-b border-border bg-card/80 backdrop-blur">
@@ -15,7 +19,3 @@
     </footer>
   </div>
 </template>
-
-<script setup lang="ts">
-useBackendUser()
-</script>

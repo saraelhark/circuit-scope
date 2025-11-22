@@ -18,6 +18,7 @@ const pagination = reactive({
 const queryParams = computed<ListProjectsQuery>(() => ({
   page: pagination.page,
   size: pagination.size,
+  status: "open",
 }))
 
 const { listProjects } = useProject()

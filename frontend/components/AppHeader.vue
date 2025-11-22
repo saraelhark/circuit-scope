@@ -1,3 +1,35 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { Bell, User, LogOut, Folder } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import { onClickOutside } from '@vueuse/core'
+
+const { data: session, status, signOut } = useAuth()
+const user = computed(() => session.value?.user)
+const isSignedIn = computed(() => status.value === 'authenticated')
+
+const isUserMenuOpen = ref(false)
+const userMenuRef = ref(null)
+
+function toggleUserMenu() {
+    isUserMenuOpen.value = !isUserMenuOpen.value
+}
+
+onClickOutside(userMenuRef, () => {
+    isUserMenuOpen.value = false
+})
+
+const handleSignOut = async () => {
+    try {
+        await signOut()
+        isUserMenuOpen.value = false
+        await navigateTo('/')
+    } catch (error) {
+        console.error('Sign out failed:', error)
+    }
+}
+</script>
+
 <template>
     <header
         class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -69,35 +101,3 @@
         </div>
     </header>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue'
-import { Bell, User, LogOut, Folder } from 'lucide-vue-next'
-import { Button } from '@/components/ui/button'
-import { onClickOutside } from '@vueuse/core'
-
-const { data: session, status, signOut } = useAuth()
-const user = computed(() => session.value?.user)
-const isSignedIn = computed(() => status.value === 'authenticated')
-
-const isUserMenuOpen = ref(false)
-const userMenuRef = ref(null)
-
-function toggleUserMenu() {
-    isUserMenuOpen.value = !isUserMenuOpen.value
-}
-
-onClickOutside(userMenuRef, () => {
-    isUserMenuOpen.value = false
-})
-
-const handleSignOut = async () => {
-    try {
-        await signOut()
-        isUserMenuOpen.value = false
-        await navigateTo('/')
-    } catch (error) {
-        console.error('Sign out failed:', error)
-    }
-}
-</script>

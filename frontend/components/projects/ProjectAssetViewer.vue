@@ -357,16 +357,6 @@ defineExpose({ adjustZoom, resetView })
         </div>
       </template>
     </div>
-
-    <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-      <div class="space-x-2">
-        <span>{{ activeView?.label ?? "View" }}</span>
-        <span v-if="displayAsset?.title">• {{ displayAsset!.title }}</span>
-        <span v-if="displayAsset?.page !== undefined">• Page {{ displayAsset!.page }}</span>
-        <span v-if="activeAsset?.page_count && activeAsset.page_count > 1">• {{ activeAsset.page_count }} sheets</span>
-        <span v-if="displayAsset?.layers?.length">• Layers: {{ displayAsset!.layers!.join(", ") }}</span>
-      </div>
-    </div>
   </div>
 </template>
 

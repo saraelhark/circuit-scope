@@ -17,6 +17,7 @@ class ThreadAnnotation(BaseModel):
 
     @model_validator(mode="after")
     def validate_annotation(self) -> "ThreadAnnotation":
+        """Validate the annotation data."""
         radius = self.data.get("radius")
         if radius is None:
             raise ValueError("Circle annotations require a radius value.")
@@ -43,8 +44,8 @@ class ThreadCommentBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_author_sources(self) -> "ThreadCommentBase":
-        # Allow fully anonymous comments (no author_id, no guest name/email),
-        # but if guest identity is partially provided, require both fields.
+        """Allow fully anonymous comments (no author_id, no guest name/email),
+        but if guest identity is partially provided, require both fields."""
         if self.guest_name is None and self.guest_email is not None:
             msg = "Guest comments require both name and email."
             raise ValueError(msg)
@@ -64,6 +65,7 @@ class InitialThreadComment(ThreadCommentBase):
 
     @model_validator(mode="after")
     def ensure_no_parent(self) -> "InitialThreadComment":
+        """Initial thread comment cannot have a parent."""
         if self.parent_id is not None:
             msg = "Initial thread comment cannot have a parent."
             raise ValueError(msg)
@@ -88,11 +90,21 @@ class ThreadResolutionUpdate(BaseModel):
     resolved_by_id: UUID | None = None
 
 
+class ThreadAuthor(BaseModel):
+    id: UUID
+    display_name: str | None
+    avatar_url: str | None
+
+    class Config:
+        from_attributes = True
+
+
 class ThreadCommentResponse(BaseModel):
     id: UUID
     thread_id: UUID
     parent_id: UUID | None
     author_id: UUID | None
+    author: ThreadAuthor | None = None
     guest_name: str | None
     guest_email: str | None
     content: str

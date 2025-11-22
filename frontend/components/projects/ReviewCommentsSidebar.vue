@@ -1,3 +1,54 @@
+<script setup lang="ts">
+import { computed } from "vue"
+
+import { Badge } from "~/components/ui/badge"
+import { Button } from "~/components/ui/button"
+import { Textarea } from "~/components/ui/textarea"
+import { formatDateTime } from "~/lib/formatters"
+import type { CommentThread } from "~/types/api/commentThreads"
+
+interface Props {
+    threads: CommentThread[]
+    activeThreadId: string | null
+    threadStatus: string | undefined
+    pendingPinPresent: boolean
+    formError: string | null
+    replyError: string | null
+    newThreadContent: string
+    replyContent: string
+    canResolveThreads?: boolean
+}
+
+const props = defineProps<Props>()
+
+const canResolveThreads = computed(() => props.canResolveThreads === true)
+
+const emit = defineEmits<{
+    (e: "update:newThreadContent", value: string): void
+    (e: "update:replyContent", value: string): void
+    (e: "open-thread", thread: CommentThread): void
+    (e: "submit-new-thread"): void
+    (e: "cancel-pending-pin"): void
+    (e: "submit-reply"): void
+    (e: "toggle-thread-resolution", thread: CommentThread): void
+}>()
+
+const localNewThreadContent = computed({
+    get: () => props.newThreadContent,
+    set: (value: string) => emit("update:newThreadContent", value),
+})
+
+const localReplyContent = computed({
+    get: () => props.replyContent,
+    set: (value: string) => emit("update:replyContent", value),
+})
+
+function threadLabel(threadId: string): number | string {
+    const index = props.threads.findIndex((t) => t.id === threadId)
+    return index >= 0 ? index + 1 : "?"
+}
+</script>
+
 <template>
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
@@ -57,7 +108,7 @@
                 <div v-if="thread.id === activeThreadId" class="mt-3 space-y-3 border-t pt-3">
                     <div v-for="comment in thread.comments" :key="comment.id" class="space-y-1">
                         <p class="text-xs font-semibold">
-                            {{ comment.guest_name ?? 'Guest' }}
+                            {{ comment.author?.display_name ?? comment.guest_name ?? 'Guest' }}
                             <span class="ml-2 text-[11px] text-muted-foreground">
                                 {{ formatDateTime(comment.created_at) }}
                             </span>
@@ -89,54 +140,3 @@
         </div>
     </div>
 </template>
-
-<script setup lang="ts">
-import { computed } from "vue"
-
-import { Badge } from "~/components/ui/badge"
-import { Button } from "~/components/ui/button"
-import { Textarea } from "~/components/ui/textarea"
-import { formatDateTime } from "~/lib/formatters"
-import type { CommentThread } from "~/types/api/commentThreads"
-
-interface Props {
-    threads: CommentThread[]
-    activeThreadId: string | null
-    threadStatus: string | undefined
-    pendingPinPresent: boolean
-    formError: string | null
-    replyError: string | null
-    newThreadContent: string
-    replyContent: string
-    canResolveThreads?: boolean
-}
-
-const props = defineProps<Props>()
-
-const canResolveThreads = computed(() => props.canResolveThreads === true)
-
-const emit = defineEmits<{
-    (e: "update:newThreadContent", value: string): void
-    (e: "update:replyContent", value: string): void
-    (e: "open-thread", thread: CommentThread): void
-    (e: "submit-new-thread"): void
-    (e: "cancel-pending-pin"): void
-    (e: "submit-reply"): void
-    (e: "toggle-thread-resolution", thread: CommentThread): void
-}>()
-
-const localNewThreadContent = computed({
-    get: () => props.newThreadContent,
-    set: (value: string) => emit("update:newThreadContent", value),
-})
-
-const localReplyContent = computed({
-    get: () => props.replyContent,
-    set: (value: string) => emit("update:replyContent", value),
-})
-
-function threadLabel(threadId: string): number | string {
-    const index = props.threads.findIndex((t) => t.id === threadId)
-    return index >= 0 ? index + 1 : "?"
-}
-</script>

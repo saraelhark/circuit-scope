@@ -5,23 +5,19 @@ from __future__ import annotations
 import io
 import json
 import logging
-import math
 import os
-import re
 import shutil
 import subprocess
 import tempfile
-import unicodedata
 import zipfile
-from copy import deepcopy
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
-from xml.etree import ElementTree as ET
 from uuid import UUID
 
 from app.core.config import settings
 from app.services.storage.base import StorageError, StorageService
+from app.services.svg_utils import compose_svg_grid, derive_sheet_title
+from app.services.utils import slugify, unique_filename
 
 logger = logging.getLogger(__name__)
 
@@ -34,137 +30,6 @@ _SAFE_ASSET_SUFFIXES: Final = {".svg", ".glb"}
 _SAFE_SOURCE_SUFFIXES: Final = {".kicad_sch", ".kicad_pcb", ".kicad_pro", ".kicad_prl"}
 MAX_KICAD_ARCHIVE_SIZE_MB: Final = 30
 MAX_KICAD_ARCHIVE_SIZE_BYTES: Final = MAX_KICAD_ARCHIVE_SIZE_MB * 1024 * 1024
-
-_SVG_NAMESPACE: Final = "http://www.w3.org/2000/svg"
-ET.register_namespace("", _SVG_NAMESPACE)
-_DIMENSION_RE = re.compile(r"([0-9.+-eE]+)")
-
-
-@dataclass(slots=True)
-class _SvgDimensions:
-    width: float
-    height: float
-
-
-def _parse_svg_dimensions(svg: ET.ElementTree) -> _SvgDimensions:
-    """Extract width/height for an SVG element, falling back to viewBox if needed."""
-
-    root = svg.getroot()
-    width_attr = root.get("width")
-    height_attr = root.get("height")
-
-    def _parse(value: str | None) -> float | None:
-        if not value:
-            return None
-        match = _DIMENSION_RE.search(value)
-        if not match:
-            return None
-        try:
-            return float(match.group(1))
-        except ValueError:
-            return None
-
-    width = _parse(width_attr)
-    height = _parse(height_attr)
-
-    if width is not None and height is not None:
-        return _SvgDimensions(width, height)
-
-    viewbox = root.get("viewBox")
-    if viewbox:
-        parts = [p for p in re.split(r"[\s,]+", viewbox.strip()) if p]
-        if len(parts) == 4:
-            try:
-                _, _, vb_width, vb_height = map(float, parts)
-                return _SvgDimensions(vb_width, vb_height)
-            except ValueError:
-                pass
-
-    raise ValueError("Unable to determine SVG dimensions")
-
-
-def _grid_dimensions(count: int) -> tuple[int, int]:
-    """Return (rows, columns) providing a balanced grid for the given count."""
-
-    if count <= 0:
-        return (1, 1)
-    columns = math.ceil(math.sqrt(count))
-    rows = math.ceil(count / columns)
-    return rows, columns
-
-
-def _compose_svg_grid(
-    svgs: list[Path], destination: Path, *, padding_ratio: float = 0.05
-) -> Path:
-    """Combine multiple SVG sheets into a single grid-based SVG."""
-
-    trees: list[ET.ElementTree] = []
-    dimensions: list[_SvgDimensions] = []
-    for svg_path in svgs:
-        tree = ET.parse(svg_path)
-        trees.append(tree)
-        try:
-            dimensions.append(_parse_svg_dimensions(tree))
-        except ValueError as exc:
-            raise RuntimeError(f"Unable to read dimensions from {svg_path}") from exc
-
-    if not trees:
-        raise RuntimeError("No SVGs supplied for composition")
-
-    max_width = max(dim.width for dim in dimensions)
-    max_height = max(dim.height for dim in dimensions)
-    rows, cols = _grid_dimensions(len(trees))
-
-    padding_x = max_width * padding_ratio
-    padding_y = max_height * padding_ratio
-
-    cell_width = max_width + padding_x
-    cell_height = max_height + padding_y
-
-    total_width = cols * cell_width - padding_x
-    total_height = rows * cell_height - padding_y
-
-    root = ET.Element(
-        "{%s}svg" % _SVG_NAMESPACE,
-        attrib={
-            "width": f"{total_width}",
-            "height": f"{total_height}",
-            "viewBox": f"0 0 {total_width} {total_height}",
-            "version": "1.1",
-        },
-    )
-
-    for index, (tree, dim) in enumerate(zip(trees, dimensions, strict=True)):
-        row = index // cols
-        col = index % cols
-        translate_x = col * cell_width
-        translate_y = row * cell_height
-
-        group = ET.SubElement(
-            root,
-            "{%s}g" % _SVG_NAMESPACE,
-            attrib={"transform": f"translate({translate_x},{translate_y})"},
-        )
-
-        scale_x = max_width / dim.width if dim.width else 1.0
-        scale_y = max_height / dim.height if dim.height else 1.0
-        uniform_scale = min(scale_x, scale_y)
-
-        scale_transform = ""
-        if not math.isclose(uniform_scale, 1.0):
-            scale_transform = f" scale({uniform_scale})"
-
-        sheet_group = ET.SubElement(group, "{%s}g" % _SVG_NAMESPACE)
-        if scale_transform:
-            sheet_group.set("transform", scale_transform.strip())
-
-        for child in deepcopy(list(tree.getroot())):
-            sheet_group.append(child)
-
-    composed_tree = ET.ElementTree(root)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    composed_tree.write(destination, encoding="utf-8", xml_declaration=True)
-    return destination
 
 
 async def process_project_archive(
@@ -185,7 +50,6 @@ async def process_project_archive(
         layouts_root = previews_root / _LAYOUT_DIR
         models_root = previews_root / _MODEL_DIR
 
-        # 1. Download archive
         try:
             await storage.download(archive_storage_path, local_archive_path)
         except StorageError:
@@ -196,7 +60,6 @@ async def process_project_archive(
             )
             return
 
-        # 2. Extract
         try:
             extraction_root.mkdir(parents=True, exist_ok=True)
             with zipfile.ZipFile(local_archive_path) as zip_file:
@@ -207,7 +70,6 @@ async def process_project_archive(
             )
             return
 
-        # 3. Prepare output directories
         for directory in (previews_root, schematics_root, layouts_root, models_root):
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -221,7 +83,6 @@ async def process_project_archive(
         schematic_sources = _find_all_schematics(extraction_root)
         board_file = _find_first(extraction_root, "*.kicad_pcb")
 
-        # 4. Render Schematics
         if not schematic_sources:
             logger.warning("No schematic file found for project %s", project_id)
         else:
@@ -237,7 +98,6 @@ async def process_project_archive(
                     "Schematic rendering failed for project %s", project_id
                 )
 
-        # 5. Render PCB
         if board_file is None:
             logger.warning("No PCB file found for project %s", project_id)
         else:
@@ -259,9 +119,6 @@ async def process_project_archive(
                     "Board GLB rendering failed for project %s", project_id
                 )
 
-        # 6. Upload generated assets
-        # Walk through previews_root and upload all files relative to it
-        # Target base: projects/{id}/previews/
         base_storage_path = _project_preview_base(project_id)
 
         for root, _, files in os.walk(previews_root):
@@ -274,7 +131,6 @@ async def process_project_archive(
                 except StorageError:
                     logger.exception("Failed to upload preview asset: %s", target_path)
 
-        # 7. Write index
         await _write_index(storage, project_id, index)
 
 
@@ -353,9 +209,9 @@ def _render_schematic_bundle(
         pages: list[dict[str, Any]] = []
         copied_svg_paths: list[Path] = []
         for idx, svg_file in enumerate(exported, start=1):
-            title = _derive_sheet_title(svg_file)
-            slug = _slugify(f"{idx:02d}-{title}")
-            filename = _unique_filename(slug, ".svg", used_filenames)
+            title = derive_sheet_title(svg_file)
+            slug = slugify(f"{idx:02d}-{title}")
+            filename = unique_filename(slug, ".svg", used_filenames)
             used_filenames.add(filename)
 
             destination = output_dir / filename
@@ -374,17 +230,17 @@ def _render_schematic_bundle(
 
     composed_entry: dict[str, Any] | None = None
     if len(copied_svg_paths) > 1:
-        composed_filename = _unique_filename("schematic-grid", ".svg", used_filenames)
+        composed_filename = unique_filename("schematic-grid", ".svg", used_filenames)
         composed_path = output_dir / composed_filename
         try:
-            _compose_svg_grid(copied_svg_paths, composed_path)
+            compose_svg_grid(copied_svg_paths, composed_path)
         except Exception:
             logger.exception(
                 "Failed to compose schematic grid; falling back to first sheet"
             )
         else:
             composed_entry = {
-                "id": f"{_slugify(primary_source.stem) or 'schematics'}-grid",
+                "id": f"{slugify(primary_source.stem) or 'schematics'}-grid",
                 "filename": composed_filename,
                 "title": "All sheets",
                 "path": f"{_SCHEMATIC_DIR}/{composed_filename}",
@@ -397,7 +253,7 @@ def _render_schematic_bundle(
         except ValueError:
             sources.append(str(source))
 
-    bundle_id = _slugify(primary_source.stem) or "schematics"
+    bundle_id = slugify(primary_source.stem) or "schematics"
     first_entry = composed_entry or pages[0]
 
     bundle: dict[str, Any] = {
@@ -472,23 +328,14 @@ def _render_board_svgs(source: Path, output_dir: Path) -> list[dict[str, Any]]:
         try:
             _run_cli(command)
         except RuntimeError:
-            # It is expected that many inner layers won't exist, so we log only at debug
-            # or ignore if it's a specific error related to missing layer.
-            # However, kicad-cli might return success even if layer is empty.
-            # We'll check file size below.
+            # Expected for missing inner layers
             logger.debug("Failed to render or layer not present: %s", key)
             continue
 
         if destination.exists():
-            # Check for "empty" SVG (just header/footer) to avoid cluttering the UI
-            # A robust check would look for actual geometry elements.
-            # For now, we'll trust existence, but we might need to refine this if KiCad
-            # exports empty SVGs for non-existent layers.
-            if destination.stat().st_size < 500:  # Arbitrary small size check
-                # Let's try to read it and check for content if needed, but size is a good first proxy.
-                # Actually, an empty SVG with viewbox might be small.
-                # Let's allow it for now, but we might want to parse it later.
-                pass
+            # Skip empty or invalid SVGs (approximate check by size)
+            if destination.stat().st_size < 500:
+                continue
 
             entries.append(
                 {
@@ -516,7 +363,6 @@ def _render_board_glb(source: Path, output_dir: Path) -> dict[str, Any] | None:
         "glb",
         "--output",
         str(destination),
-        # Include copper features and component models for a richer 3D view.
         "--include-tracks",
         "--include-pads",
         "--include-zones",
@@ -554,9 +400,6 @@ def _run_cli(command: list[str]) -> None:
         raise RuntimeError("kicad-cli command timed out") from exc
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"kicad-cli exited with code {exc.returncode}") from exc
-
-
-import io
 
 
 async def _write_index(
@@ -643,9 +486,7 @@ async def list_previews_summary(
     }
 
 
-async def validate_preview_asset_path(
-    storage: StorageService, project_id: UUID, asset_path: str
-) -> str:
+async def validate_preview_asset_path(project_id: UUID, asset_path: str) -> str:
     """Resolve the storage path for a preview asset, validating traversal attempts."""
 
     clean_path = _sanitize_asset_path(asset_path)
@@ -672,37 +513,8 @@ def _preview_index_storage_path(project_id: UUID) -> str:
     return str(_project_preview_base(project_id) / _INDEX_FILENAME)
 
 
-def _derive_sheet_title(svg_file: Path) -> str:
-    try:
-        content = svg_file.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        return svg_file.stem
-
-    match = re.search(r"<title>(.*?)</title>", content, flags=re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    return svg_file.stem
-
-
-def _slugify(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value)
-    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
-    slug = re.sub(r"[^a-z0-9]+", "-", ascii_value.lower()).strip("-")
-    return slug or "sheet"
-
-
-def _unique_filename(base: str, extension: str, used: set[str]) -> str:
-    candidate = f"{base}{extension}"
-    counter = 1
-    while candidate in used:
-        candidate = f"{base}-{counter}{extension}"
-        counter += 1
-    return candidate
-
-
 __all__ = [
     "process_project_archive",
     "load_preview_index",
     "list_previews_summary",
-    "preview_asset_filesystem_path",
 ]

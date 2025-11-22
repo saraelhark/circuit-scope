@@ -132,7 +132,7 @@ async function shareProject() {
     </div>
 
     <div v-else>
-      <div v-if="status === 'pending'" class="flex h-64 items-center justify-center text-muted-foreground">
+      <div v-if="status === 'pending' && !project" class="flex h-64 items-center justify-center text-muted-foreground">
         Loading project…
       </div>
 

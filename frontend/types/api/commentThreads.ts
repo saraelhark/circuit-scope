@@ -5,11 +5,18 @@ export interface ThreadAnnotation {
   data: Record<string, unknown>
 }
 
+export interface ThreadAuthor {
+  id: string
+  display_name: string | null
+  avatar_url: string | null
+}
+
 export interface ThreadComment {
   id: string
   thread_id: string
   parent_id: string | null
   author_id: string | null
+  author: ThreadAuthor | null
   guest_name: string | null
   guest_email: string | null
   content: string

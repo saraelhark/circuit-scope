@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -40,11 +41,6 @@ class LocalStorage(StorageService):
             await asyncio.to_thread(_write)
         except Exception as exc:
             raise StorageError("Failed to save file") from exc
-        finally:
-            try:
-                file_obj.close()
-            except Exception:
-                pass
 
         return path
 
@@ -55,8 +51,6 @@ class LocalStorage(StorageService):
 
         def _copy() -> None:
             with file_path.open("rb") as src, destination.open("wb") as dst:
-                import shutil
-
                 shutil.copyfileobj(src, dst)
 
         try:
@@ -73,8 +67,6 @@ class LocalStorage(StorageService):
             raise StorageError(f"File not found: {path}")
 
         def _copy() -> None:
-            import shutil
-
             shutil.copy(source, destination)
 
         try:

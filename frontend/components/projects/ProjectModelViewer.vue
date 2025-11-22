@@ -60,17 +60,14 @@ function initScene() {
   const ambient = new THREE.AmbientLight(0xffffff, 0.8)
   scene.add(ambient)
 
-  // Add camera to scene so attached lights work
   scene.add(camera)
 
-  // Main directional light attached to camera
   const mainLight = new THREE.DirectionalLight(0xffffff, 0.9)
   mainLight.position.set(5, 5, 5)
   mainLight.target.position.set(0, 0, -1)
   camera.add(mainLight)
   camera.add(mainLight.target)
 
-  // Fill light attached to camera
   const fillLight = new THREE.DirectionalLight(0x7cffe8, 0.5)
   fillLight.position.set(-5, -5, 5)
   fillLight.target.position.set(0, 0, -1)
@@ -155,20 +152,15 @@ function loadModel(url?: string) {
       if (!scene) return
       const root = new THREE.Group()
 
-      // Calculate bounding box of the loaded model
       const box = new THREE.Box3().setFromObject(gltf.scene)
       const center = box.getCenter(new THREE.Vector3())
       const size = box.getSize(new THREE.Vector3())
 
-      // Center the model content itself so that its geometric center is at (0,0,0)
       gltf.scene.position.sub(center)
       root.add(gltf.scene)
 
-      // Orient the model: Rotate 90 degrees around X to bring the flat face (XZ) to view plane (XY)
-      // This assumes the PCB model is flat on the XZ plane (Y-up world)
       root.rotation.x = Math.PI / 2
 
-      // Scale the model to a standard size
       const maxDimension = Math.max(size.x, size.y, size.z) || 1
       const desiredSize = 4
       const scale = desiredSize / maxDimension
@@ -177,17 +169,13 @@ function loadModel(url?: string) {
       currentModel = root
       scene.add(root)
 
-      // Adjust camera distance to fit the object
       if (camera && controls) {
         const fill = 0.7
         const fov = (camera.fov * Math.PI) / 180
-        // After rotation, the height is likely along Y (was Z or X)
-        // Use the largest dimension to be safe for framing
-        const displayHeight = Math.max(size.x, size.z) // Assuming Y was thickness (small)
+        const displayHeight = Math.max(size.x, size.z)
         const halfHeight = (displayHeight * scale) / 2
         cameraDistance = halfHeight / (Math.tan(fov / 2) * fill)
 
-        // Ensure camera distance is reasonable
         cameraDistance = Math.max(cameraDistance, 2)
 
         camera.near = cameraDistance / 50

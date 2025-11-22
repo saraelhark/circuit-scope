@@ -2,7 +2,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import ProjectModelViewer from "~/components/projects/ProjectModelViewer.vue"
-import type { PreviewAsset } from "~/types/api/projects"
 import type { ViewerView } from "~/types/viewer"
 
 export type CircleViewerAnnotation = {
@@ -326,8 +325,8 @@ defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrienta
 <template>
   <div class="relative h-full w-full">
     <div v-if="is3DView" class="relative h-full w-full">
-      <ProjectModelViewer ref="modelViewerRef" :model-url="activeAsset?.url || undefined"
-        :interaction-enabled="false" @bounds-change="handleModelBounds" />
+      <ProjectModelViewer ref="modelViewerRef" :model-url="activeAsset?.url || undefined" :interaction-enabled="false"
+        @bounds-change="handleModelBounds" />
       <div v-if="!activeAsset?.url"
         class="absolute inset-0 flex h-full w-full items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-sm text-muted-foreground">
         {{ activeView?.fallbackMessage ?? 'No 3D model available.' }}

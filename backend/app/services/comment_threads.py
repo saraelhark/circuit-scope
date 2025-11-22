@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Sequence
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import selectinload
 
 from app.api.schemas.comment_threads import (
     CommentThreadCreate,
@@ -20,14 +20,8 @@ from app.api.schemas.comment_threads import (
     ThreadCommentResponse,
     ThreadResolutionUpdate,
 )
-from db.models import CommentThread, Project, ThreadComment
-
-
-async def _ensure_project_exists(session: AsyncSession, project_id: UUID) -> None:
-    exists_query = select(Project.id).where(Project.id == project_id)
-    result = await session.execute(exists_query)
-    if result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+from app.services.projects import ensure_project_exists
+from db.models import CommentThread, ThreadComment
 
 
 async def list_threads(
@@ -35,12 +29,15 @@ async def list_threads(
     *,
     project_id: UUID,
 ) -> CommentThreadListResponse:
-    await _ensure_project_exists(session, project_id)
+    """List threads for a project."""
+    await ensure_project_exists(session, project_id)
 
     query: Select[tuple[CommentThread]] = (
         select(CommentThread)
         .where(CommentThread.project_id == project_id)
-        .options(selectinload(CommentThread.comments))
+        .options(
+            selectinload(CommentThread.comments).selectinload(ThreadComment.author)
+        )
         .order_by(CommentThread.created_at.asc())
     )
 
@@ -66,7 +63,8 @@ async def create_thread(
     project_id: UUID,
     payload: CommentThreadCreate,
 ) -> CommentThreadResponse:
-    await _ensure_project_exists(session, project_id)
+    """Create a new thread."""
+    await ensure_project_exists(session, project_id)
 
     created_by_id = payload.created_by_id or payload.initial_comment.author_id
 
@@ -93,8 +91,10 @@ async def create_thread(
 
     result = await session.execute(
         select(CommentThread)
-            .options(selectinload(CommentThread.comments))
-            .where(CommentThread.id == thread.id)
+        .options(
+            selectinload(CommentThread.comments).selectinload(ThreadComment.author)
+        )
+        .where(CommentThread.id == thread.id)
     )
     thread_with_comments = result.scalar_one()
 
@@ -108,12 +108,15 @@ async def add_comment(
     thread_id: UUID,
     payload: ThreadCommentCreate,
 ) -> ThreadCommentResponse:
+    """Add a new comment to a thread."""
     thread = await _get_thread(session, project_id, thread_id)
 
     if payload.parent_id is not None:
         parent = await session.get(ThreadComment, payload.parent_id)
         if parent is None or parent.thread_id != thread.id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid parent comment")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid parent comment"
+            )
 
     comment = ThreadComment(
         thread_id=thread.id,
@@ -126,7 +129,14 @@ async def add_comment(
 
     session.add(comment)
     await session.commit()
-    await session.refresh(comment)
+
+    query = (
+        select(ThreadComment)
+        .options(selectinload(ThreadComment.author))
+        .where(ThreadComment.id == comment.id)
+    )
+    result = await session.execute(query)
+    comment = result.scalar_one()
 
     return ThreadCommentResponse.model_validate(comment, from_attributes=True)
 
@@ -138,12 +148,13 @@ async def update_thread_resolution(
     thread_id: UUID,
     payload: ThreadResolutionUpdate,
 ) -> CommentThreadResponse:
+    """Update the resolution status of a thread."""
     thread = await _get_thread(session, project_id, thread_id)
 
     if payload.is_resolved:
         thread.is_resolved = True
         thread.resolved_by_id = payload.resolved_by_id
-        thread.resolved_at = datetime.utcnow()
+        thread.resolved_at = datetime.now(timezone.utc)
     else:
         thread.is_resolved = False
         thread.resolved_by_id = None
@@ -161,6 +172,7 @@ async def delete_thread(
     project_id: UUID,
     thread_id: UUID,
 ) -> None:
+    """Delete a thread."""
     thread = await _get_thread(session, project_id, thread_id)
     await session.delete(thread)
     await session.commit()
@@ -173,11 +185,14 @@ async def delete_comment(
     thread_id: UUID,
     comment_id: UUID,
 ) -> None:
+    """Delete a comment."""
     thread = await _get_thread(session, project_id, thread_id)
 
     comment = await session.get(ThreadComment, comment_id)
     if comment is None or comment.thread_id != thread.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
+        )
 
     await session.delete(comment)
     await session.commit()
@@ -190,18 +205,25 @@ async def _get_thread(
 ) -> CommentThread:
     query = (
         select(CommentThread)
-        .options(joinedload(CommentThread.comments))
+        .options(
+            selectinload(CommentThread.comments).selectinload(ThreadComment.author)
+        )
         .where(CommentThread.project_id == project_id, CommentThread.id == thread_id)
     )
     result = await session.execute(query)
     thread = result.scalar_one_or_none()
     if thread is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found"
+        )
     return thread
 
 
 def _serialize_thread(thread: CommentThread) -> CommentThreadResponse:
-    comment_models = [ThreadCommentResponse.model_validate(c, from_attributes=True) for c in thread.comments]
+    comment_models = [
+        ThreadCommentResponse.model_validate(c, from_attributes=True)
+        for c in thread.comments
+    ]
 
     annotation: ThreadAnnotation | None = None
     if thread.annotation:

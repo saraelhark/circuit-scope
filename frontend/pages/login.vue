@@ -1,3 +1,14 @@
+<script setup lang="ts">
+const { signIn, status, data: session } = useAuth();
+
+watch(session, (newSession) => {
+    if (newSession) {
+        navigateTo('/dashboard');
+    }
+}, { immediate: true });
+</script>
+
+
 <template>
     <div class="min-h-screen flex items-center justify-center bg-gray-50">
         <div class="max-w-md w-full">
@@ -46,13 +57,3 @@
         </div>
     </div>
 </template>
-
-<script setup lang="ts">
-const { signIn, status, data: session } = useAuth();
-
-watch(session, (newSession) => {
-    if (newSession) {
-        navigateTo('/dashboard');
-    }
-}, { immediate: true });
-</script>

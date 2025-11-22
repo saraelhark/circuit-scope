@@ -1,3 +1,20 @@
+<script setup lang="ts">
+import { Button } from "~/components/ui/button"
+
+interface Props {
+    open: boolean
+    alias: string | null
+}
+
+defineProps<Props>()
+
+defineEmits<{
+    (e: "continue-anonymous"): void
+    (e: "sign-in"): void
+    (e: "cancel"): void
+}>()
+</script>
+
 <template>
     <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
         <div class="w-full max-w-sm rounded-lg bg-card p-4 shadow-lg">
@@ -19,20 +36,3 @@
         </div>
     </div>
 </template>
-
-<script setup lang="ts">
-import { Button } from "~/components/ui/button"
-
-interface Props {
-    open: boolean
-    alias: string | null
-}
-
-defineProps<Props>()
-
-defineEmits<{
-    (e: "continue-anonymous"): void
-    (e: "sign-in"): void
-    (e: "cancel"): void
-}>()
-</script>

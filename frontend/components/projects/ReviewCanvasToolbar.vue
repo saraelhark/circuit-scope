@@ -20,6 +20,8 @@
             </button>
         </div>
         <div class="flex items-center gap-1">
+            <button v-if="props.currentViewId === 'pcb-3d'" class="rounded-md border px-2 py-1 text-xs"
+                @click="emit('flip-view')">Flip View</button>
             <button class="rounded-md border px-2 py-1 text-xs" @click="emit('zoom-out')">-</button>
             <button class="rounded-md border px-2 py-1 text-xs" @click="emit('zoom-in')">+</button>
             <button class="rounded-md border px-2 py-1 text-xs" @click="emit('reset-zoom')">Reset</button>
@@ -28,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import type { ViewerView } from "~/components/projects/ReviewCanvas.vue"
+import type { ViewerView } from "~/types/viewer"
 
 type Tool = "pan" | "circle"
 
@@ -46,6 +48,7 @@ const emit = defineEmits<{
     (e: "zoom-in"): void
     (e: "zoom-out"): void
     (e: "reset-zoom"): void
+    (e: "flip-view"): void
 }>()
 
 const toolOptions: { label: string; value: Tool }[] = [

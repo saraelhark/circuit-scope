@@ -1,14 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
-import type { PreviewAsset } from "~/types/api/projects"
 
-export type ViewerView = {
-  id: string
-  label: string
-  asset?: PreviewAsset | null
-  fallbackMessage?: string
-  pages?: PreviewAsset[]
-}
+import ProjectModelViewer from "~/components/projects/ProjectModelViewer.vue"
+import type { PreviewAsset } from "~/types/api/projects"
+import type { ViewerView } from "~/types/viewer"
 
 export type CircleViewerAnnotation = {
   id: string
@@ -61,14 +56,17 @@ const activePointerId = ref<number | null>(null)
 
 const contentRef = ref<HTMLDivElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
-
+const modelViewerRef = ref<InstanceType<typeof ProjectModelViewer> | null>(null)
 const assetBounds = ref<DOMRect | null>(null)
+const modelBounds = ref<DOMRect | null>(null)
+const annotationPointerTarget = ref<HTMLElement | null>(null)
 
 const activeViewId = ref<string | null>(null)
 const activeView = computed(() => props.views.find((v) => v.id === activeViewId.value) ?? props.views[0])
 const composedAsset = computed(() => activeView.value?.asset ?? null)
 const activeAsset = computed(() => composedAsset.value ?? activeView.value?.asset)
-const isLayoutView = computed(() => activeView.value?.id?.startsWith("pcb"))
+const is3DView = computed(() => activeView.value?.kind === "3d")
+const isLayoutView = computed(() => !is3DView.value && activeView.value?.id?.startsWith("pcb"))
 const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
 const annotationColor = "#7CFF00"
 
@@ -121,7 +119,7 @@ function computeInitialZoom() {
 
 
 function handlePointerDown(event: PointerEvent) {
-  if (props.activeTool !== "pan") return
+  if (props.activeTool !== "pan" || is3DView.value) return
   if (event.pointerType === "touch") event.preventDefault()
   if (!contentRef.value || isPanning.value) return
   isPanning.value = true
@@ -132,7 +130,7 @@ function handlePointerDown(event: PointerEvent) {
 }
 
 function handlePointerMove(event: PointerEvent) {
-  if (props.activeTool !== "pan") return
+  if (props.activeTool !== "pan" || is3DView.value) return
   if (!isPanning.value || activePointerId.value !== event.pointerId) return
   event.preventDefault()
   const dx = event.clientX - pointerStart.value.x
@@ -156,7 +154,7 @@ function handlePointerUp(event: PointerEvent) {
 }
 
 function handleWheel(e: WheelEvent) {
-  if (props.activeTool !== "pan") return
+  if (props.activeTool !== "pan" || is3DView.value) return
   e.preventDefault()
   const delta = Math.sign(e.deltaY)
   adjustZoom(delta > 0 ? -1 : 1)
@@ -216,7 +214,6 @@ watch(
 
 function canvasPointerDown(e: PointerEvent) {
   if (props.activeTool !== "circle") return
-  if (!imageRef.value) return
   e.preventDefault()
 
   updateAssetBounds()
@@ -230,7 +227,9 @@ function canvasPointerDown(e: PointerEvent) {
     currentX: rel.x,
     currentY: rel.y,
   }
-  contentRef.value?.setPointerCapture(e.pointerId)
+  const target = e.currentTarget as HTMLElement | null
+  annotationPointerTarget.value = target ?? null
+  target?.setPointerCapture?.(e.pointerId)
 }
 function canvasPointerMove(e: PointerEvent) {
   if (!draftShape.value) return
@@ -262,7 +261,8 @@ function canvasPointerUp(e: PointerEvent) {
   }
   shapes.value = { ...shapes.value, [activeView.value.id]: shape }
   draftShape.value = null
-  contentRef.value?.releasePointerCapture(e.pointerId)
+  annotationPointerTarget.value?.releasePointerCapture?.(e.pointerId)
+  annotationPointerTarget.value = null
 }
 
 function clientToRelative(clientX: number, clientY: number) {
@@ -276,6 +276,19 @@ watch([zoom, () => translate.value.x, () => translate.value.y], () => {
   nextTick(() => updateAssetBounds())
 })
 function updateAssetBounds() {
+  if (is3DView.value) {
+    if (modelBounds.value) {
+      assetBounds.value = new DOMRect(
+        modelBounds.value.x,
+        modelBounds.value.y,
+        modelBounds.value.width,
+        modelBounds.value.height,
+      )
+    } else {
+      assetBounds.value = null
+    }
+    return
+  }
   if (!imageRef.value) {
     assetBounds.value = null
     return
@@ -289,6 +302,17 @@ function handleImageLoad() {
   nextTick(() => updateAssetBounds())
 }
 
+function handleModelBounds(rect: DOMRect) {
+  modelBounds.value = rect
+  if (is3DView.value) {
+    assetBounds.value = new DOMRect(rect.x, rect.y, rect.width, rect.height)
+  }
+}
+
+function flipModelOrientation() {
+  modelViewerRef.value?.toggleFlip()
+}
+
 onMounted(() => {
   window.addEventListener("resize", updateAssetBounds)
 })
@@ -296,12 +320,38 @@ onBeforeUnmount(() => {
   window.removeEventListener("resize", updateAssetBounds)
 })
 
-defineExpose({ adjustZoom, resetView, setActiveView })
+defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrientation })
 </script>
 
 <template>
   <div class="relative h-full w-full">
-    <div ref="contentRef" class="relative h-full w-full touch-none select-none"
+    <div v-if="is3DView" class="relative h-full w-full">
+      <ProjectModelViewer ref="modelViewerRef" :model-url="activeAsset?.url || undefined"
+        :interaction-enabled="false" @bounds-change="handleModelBounds" />
+      <div v-if="!activeAsset?.url"
+        class="absolute inset-0 flex h-full w-full items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-sm text-muted-foreground">
+        {{ activeView?.fallbackMessage ?? 'No 3D model available.' }}
+      </div>
+      <div class="absolute inset-0" :style="{ cursor: props.activeTool === 'circle' ? 'crosshair' : 'default' }"
+        @pointerdown.capture="canvasPointerDown" @pointermove.capture="canvasPointerMove"
+        @pointerup.capture="canvasPointerUp">
+        <svg v-if="assetBounds && (activeViewShapes.length || draftShape)" class="pointer-events-none absolute inset-0"
+          :viewBox="`0 0 1 1`" preserveAspectRatio="none">
+          <template v-for="shape in activeViewShapes" :key="shape.id">
+            <circle :cx="(shape.startX + shape.endX) / 2" :cy="(shape.startY + shape.endY) / 2"
+              :r="Math.max(Math.abs(shape.endX - shape.startX), Math.abs(shape.endY - shape.startY)) / 2"
+              :stroke="annotationColor" stroke-width="0.002" fill="none" />
+          </template>
+          <template v-if="draftShape">
+            <circle :cx="(draftShape.startX + draftShape.currentX) / 2"
+              :cy="(draftShape.startY + draftShape.currentY) / 2"
+              :r="Math.max(Math.abs(draftShape.currentX - draftShape.startX), Math.abs(draftShape.currentY - draftShape.startY)) / 2"
+              :stroke="annotationColor" stroke-width="0.002" fill="none" stroke-dasharray="0.006" />
+          </template>
+        </svg>
+      </div>
+    </div>
+    <div v-else ref="contentRef" class="relative h-full w-full touch-none select-none"
       :style="{ cursor: props.activeTool === 'pan' ? (isPanning ? 'grabbing' : 'grab') : 'crosshair', backgroundColor: layoutBackgroundStyle?.backgroundColor ?? 'transparent' }"
       @wheel.prevent="handleWheel" @pointerdown="handlePointerDown" @pointercancel="stopPanning"
       @pointerleave="stopPanning" @dblclick.prevent="resetView()" @pointerdown.capture="canvasPointerDown"

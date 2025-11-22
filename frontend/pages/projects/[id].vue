@@ -4,7 +4,8 @@ import { Share2 } from "lucide-vue-next"
 
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
-import ProjectAssetViewer, { type ViewerView } from "~/components/projects/ProjectAssetViewer.vue"
+import ProjectAssetViewer from "~/components/projects/ProjectAssetViewer.vue"
+import { buildViewerViews } from "~/lib/reviewViewer"
 import type { Project, ProjectPreviewResponse } from "~/types/api/projects"
 import { useProject } from "~/composables/useProjects"
 
@@ -50,48 +51,8 @@ const previews = computed(() => previewData.value)
 
 const schematics = computed(() => previews.value?.schematics ?? [])
 const layouts = computed(() => previews.value?.layouts ?? [])
-const viewerViews = computed<ViewerView[]>(() => {
-  const views: ViewerView[] = []
-
-  if (schematics.value.length) {
-    views.push({
-      id: "schematic",
-      label: "Schematic",
-      asset: schematics.value[0],
-      fallbackMessage: "No schematic SVG generated yet.",
-    })
-  } else {
-    views.push({
-      id: "schematic",
-      label: "Schematic",
-      asset: undefined,
-      fallbackMessage: "No schematic previews available.",
-    })
-  }
-
-  const topLayout = layouts.value.find((layout) => /top|front/i.test(layout.title ?? layout.id)) ?? layouts.value[0]
-  const bottomLayout = layouts.value.find((layout) => /bottom|back/i.test(layout.title ?? layout.id))
-
-  views.push({
-    id: "pcb-top",
-    label: "PCB Top",
-    asset: topLayout ?? null,
-    fallbackMessage: layouts.value.length
-      ? "No top-side layout detected; showing first layout available."
-      : "No PCB layout previews available.",
-  })
-
-  views.push({
-    id: "pcb-bottom",
-    label: "PCB Bottom",
-    asset: bottomLayout ?? (layouts.value.length > 1 ? layouts.value[1] : null),
-    fallbackMessage: layouts.value.length > 1
-      ? "No bottom-side layout detected; showing alternative layout."
-      : "No additional PCB layout previews available.",
-  })
-
-  return views
-})
+const models = computed(() => previews.value?.models ?? [])
+const viewerViews = computed(() => buildViewerViews(schematics.value, layouts.value, models.value))
 
 useHead(() => ({
   title: project.value ? `${project.value.name} – Project – Circuit Scope` : "Project – Circuit Scope",

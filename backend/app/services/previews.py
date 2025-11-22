@@ -462,18 +462,24 @@ def _render_board_glb(source: Path, output_dir: Path) -> dict[str, Any] | None:
     output_dir.mkdir(parents=True, exist_ok=True)
     destination = output_dir / "board.glb"
 
-    _run_cli(
-        [
-            settings.kicad_cli_path,
-            "pcb",
-            "export",
-            "glb",
-            "--output",
-            str(destination),
-            "--board-only",
-            str(source),
-        ]
-    )
+    command = [
+        settings.kicad_cli_path,
+        "pcb",
+        "export",
+        "glb",
+        "--output",
+        str(destination),
+        # Include copper features and component models for a richer 3D view.
+        "--include-tracks",
+        "--include-pads",
+        "--include-zones",
+        "--include-silkscreen",
+        "--include-soldermask",
+        "--subst-models",
+        str(source),
+    ]
+
+    _run_cli(command)
 
     if destination.exists():
         return {

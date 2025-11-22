@@ -2,15 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { Button } from "~/components/ui/button"
 
+import ProjectModelViewer from "~/components/projects/ProjectModelViewer.vue"
 import type { PreviewAsset } from "~/types/api/projects"
-
-export type ViewerView = {
-  id: string
-  label: string
-  asset?: PreviewAsset | null
-  fallbackMessage?: string
-  pages?: PreviewAsset[]
-}
+import type { ViewerView } from "~/types/viewer"
 
 const props = withDefaults(
   defineProps<{
@@ -60,6 +54,8 @@ const imageRef = ref<HTMLImageElement | null>(null)
 const isAssetLoaded = ref(false)
 const assetError = ref<string | null>(null)
 const assetBounds = ref<DOMRect | null>(null)
+const modelBounds = ref<DOMRect | null>(null)
+const modelViewerRef = ref<InstanceType<typeof ProjectModelViewer> | null>(null)
 
 const activeView = computed(() => props.views.find((view) => view.id === activeViewId.value) ?? props.views[0])
 const activeAsset = computed<PreviewAsset | null | undefined>(() => activeView.value?.asset)
@@ -70,12 +66,16 @@ const displayAssetAlt = computed(
   () => displayAsset.value?.title ?? displayAsset.value?.filename ?? "Preview asset",
 )
 
-const hasAsset = computed(() => {
+const is3DView = computed(() => activeView.value?.kind === "3d")
+const has2DAsset = computed(() => {
   const asset = displayAsset.value
-  return Boolean(asset?.url && !assetError.value)
+  return Boolean(!is3DView.value && asset?.url && !assetError.value)
 })
-const isLayoutView = computed(() => activeView.value?.id?.startsWith("pcb"))
+const isLayoutView = computed(() => !is3DView.value && activeView.value?.id?.startsWith("pcb"))
 const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
+const showControlsBar = computed(() => props.showControls !== false)
+const showZoomControls = computed(() => showControlsBar.value && !is3DView.value)
+const canFlipModel = computed(() => is3DView.value && Boolean(activeAsset.value?.url))
 
 watch(
   () => props.views,
@@ -144,6 +144,10 @@ function resetView(skipZoomReset = false) {
   if (!skipZoomReset) zoom.value = computeInitialZoom()
   translate.value = { x: 0, y: 0 }
   nextTick(() => updateAssetBounds())
+}
+
+function flipModelOrientation() {
+  modelViewerRef.value?.toggleFlip()
 }
 
 function computeInitialZoom() {
@@ -249,6 +253,19 @@ function handleCanvasClick(event: MouseEvent) {
 }
 
 function updateAssetBounds() {
+  if (is3DView.value) {
+    if (modelBounds.value) {
+      assetBounds.value = new DOMRect(
+        modelBounds.value.x,
+        modelBounds.value.y,
+        modelBounds.value.width,
+        modelBounds.value.height,
+      )
+    } else {
+      assetBounds.value = null
+    }
+    return
+  }
   if (!imageRef.value) {
     assetBounds.value = null
     return
@@ -256,12 +273,19 @@ function updateAssetBounds() {
   const rect = imageRef.value.getBoundingClientRect()
   assetBounds.value = new DOMRect(rect.x, rect.y, rect.width, rect.height)
 }
+
+function handleModelBounds(rect: DOMRect) {
+  modelBounds.value = rect
+  if (is3DView.value) {
+    assetBounds.value = new DOMRect(rect.x, rect.y, rect.width, rect.height)
+  }
+}
 defineExpose({ adjustZoom, resetView })
 </script>
 
 <template>
   <div class="space-y-4">
-    <div v-if="showControls !== false" class="flex flex-wrap items-center justify-between gap-3">
+    <div v-if="showControlsBar" class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-2">
         <button v-for="view in views" :key="view.id" type="button"
           class="rounded-md border px-3 py-1 text-sm transition" :class="view.id === activeView?.id
@@ -271,15 +295,20 @@ defineExpose({ adjustZoom, resetView })
         </button>
       </div>
       <div class="flex items-center gap-2">
-        <Button size="sm" variant="outline" @click="adjustZoom(-1)">
-          −
-        </Button>
-        <span class="text-xs tabular-nums text-muted-foreground">{{ Math.round(zoom * 100) }}%</span>
-        <Button size="sm" variant="outline" @click="adjustZoom(1)">
-          +
-        </Button>
-        <Button size="sm" variant="secondary" @click="resetView()">
-          Reset
+        <template v-if="showZoomControls">
+          <Button size="sm" variant="outline" @click="adjustZoom(-1)">
+            −
+          </Button>
+          <span class="text-xs tabular-nums text-muted-foreground">{{ Math.round(zoom * 100) }}%</span>
+          <Button size="sm" variant="outline" @click="adjustZoom(1)">
+            +
+          </Button>
+          <Button size="sm" variant="secondary" @click="resetView()">
+            Reset
+          </Button>
+        </template>
+        <Button v-if="canFlipModel" size="sm" variant="outline" @click="flipModelOrientation">
+          Flip view
         </Button>
       </div>
     </div>
@@ -289,17 +318,26 @@ defineExpose({ adjustZoom, resetView })
         No views available.
       </div>
       <template v-else>
-        <div ref="contentRef" class="relative h-[520px] touch-none select-none" :class="hasAsset ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-          " :style="layoutBackgroundStyle" @wheel.prevent="handleWheel" @pointerdown="handlePointerDown"
-          @pointermove="handlePointerMove" @pointerup="handlePointerUp" @pointercancel="handlePointerUp"
-          @pointerleave="handlePointerLeave" @dblclick.prevent="resetView()" @click="handleCanvasClick">
+        <div v-if="is3DView" class="relative h-[520px] select-none">
+          <ProjectModelViewer ref="modelViewerRef" class="h-full w-full" :model-url="activeAsset?.url || undefined"
+            @bounds-change="handleModelBounds" />
+          <div v-if="!activeAsset?.url"
+            class="absolute inset-0 flex items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-sm text-muted-foreground">
+            {{ activeView?.fallbackMessage ?? "No 3D model available." }}
+          </div>
+        </div>
+        <div v-else ref="contentRef" class="relative h-[520px] touch-none select-none"
+          :class="has2DAsset ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'" :style="layoutBackgroundStyle"
+          @wheel.prevent="handleWheel" @pointerdown="handlePointerDown" @pointermove="handlePointerMove"
+          @pointerup="handlePointerUp" @pointercancel="handlePointerUp" @pointerleave="handlePointerLeave"
+          @dblclick.prevent="resetView()" @click="handleCanvasClick">
           <div
             class="absolute left-1/2 top-1/2 flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-center">
             <div class="transition-transform duration-75 ease-out" :style="{
               transform: `translate(${translate.x}px, ${translate.y}px) scale(${zoom})`,
             }">
               <div class="relative flex items-center justify-center">
-                <div v-if="!hasAsset"
+                <div v-if="!has2DAsset"
                   class="flex h-[420px] w-[720px] max-w-[85vw] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/40 p-6 text-center text-sm text-muted-foreground">
                   <p>{{ assetError ?? activeView?.fallbackMessage ?? "No asset available for this view." }}</p>
                 </div>

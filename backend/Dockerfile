@@ -5,7 +5,8 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    VIRTUAL_ENV=/opt/venv
+    VIRTUAL_ENV=/opt/venv \
+    KICAD9_3DMODEL_DIR=/usr/share/kicad/3dmodels
 
 # Base system packages + Python runtime
 RUN apt-get update && \
@@ -22,10 +23,12 @@ RUN apt-get update && \
         build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-# KiCad CLI tools (via official PPA for KiCad 9)
+# KiCad CLI tools (via official PPA for KiCad 9) + official 3D model libraries
 RUN add-apt-repository -y ppa:kicad/kicad-9.0-releases && \
     apt-get update && \
-    apt-get install -y --no-install-recommends kicad && \
+    apt-get install -y --no-install-recommends \
+        kicad \
+        kicad-packages3d && \
     rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m venv "$VIRTUAL_ENV"

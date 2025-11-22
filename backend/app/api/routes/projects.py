@@ -137,17 +137,19 @@ async def get_project_previews_endpoint(
 
     def build_asset_entry(entry: dict[str, Any]) -> dict[str, Any]:
         asset_path = entry.get("path")
-        url = (
-            str(
-                request.url_for(
-                    "get_project_preview_asset",
-                    project_id=str(project_id),
-                    asset_path=asset_path,
-                )
+
+        # Return a relative path for assets so that, in development, the frontend
+        # dev server proxy keeps requests on the same origin (avoiding CORS
+        # issues for binary assets like GLB). The router prefix (e.g. /api/v1)
+        # is already included via the mounted router + app prefix.
+        url: str | None = None
+        if asset_path:
+            generated_url = request.url_for(
+                "get_project_preview_asset",
+                project_id=str(project_id),
+                asset_path=asset_path,
             )
-            if asset_path
-            else None
-        )
+            url = generated_url.path
 
         enriched = {**entry, "url": url}
 

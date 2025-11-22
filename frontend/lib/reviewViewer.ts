@@ -1,9 +1,10 @@
 import type { PreviewAsset } from "~/types/api/projects"
-import type { ViewerView } from "~/components/projects/ReviewCanvas.vue"
+import type { ViewerView } from "~/types/viewer"
 
 export function buildViewerViews(
     schematics: PreviewAsset[],
     layouts: PreviewAsset[],
+    models: PreviewAsset[] = [],
 ): ViewerView[] {
     const views: ViewerView[] = []
 
@@ -44,6 +45,17 @@ export function buildViewerViews(
             ? "No bottom-side layout detected; showing alternative layout."
             : "No additional PCB layout previews available.",
     })
+
+    const modelAsset = models[0]
+    if (modelAsset) {
+        views.push({
+            id: "pcb-3d",
+            label: "3D Model",
+            asset: modelAsset,
+            fallbackMessage: "No 3D model preview available.",
+            kind: "3d",
+        })
+    }
 
     return views
 }

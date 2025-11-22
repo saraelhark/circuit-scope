@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch, onMounted } from "vue"
 
+import { type ViewerView } from "~/types/viewer"
 import ReviewCanvas, {
-    type ViewerView,
     type ViewerAnnotation,
     type CircleViewerAnnotation,
 } from "~/components/projects/ReviewCanvas.vue"
@@ -52,6 +52,7 @@ const previews = computed(() => previewData.value)
 
 const schematics = computed(() => previews.value?.schematics ?? [])
 const layouts = computed(() => previews.value?.layouts ?? [])
+const models = computed(() => previews.value?.models ?? [])
 
 const projectOwnerId = computed(() => (previews.value?.project as any)?.owner_id as string | undefined)
 const canResolveThreads = computed(
@@ -59,7 +60,7 @@ const canResolveThreads = computed(
 )
 
 const viewerViews = computed<ViewerView[]>(() =>
-    buildViewerViews(schematics.value, layouts.value),
+    buildViewerViews(schematics.value, layouts.value, models.value),
 )
 
 const {
@@ -335,6 +336,7 @@ const viewer = ref<InstanceType<typeof ReviewCanvas> | null>(null)
 function zoomIn() { viewer.value?.adjustZoom(1) }
 function zoomOut() { viewer.value?.adjustZoom(-1) }
 function resetZoom() { viewer.value?.resetView() }
+function flipModel() { viewer.value?.flipModel() }
 
 onMounted(() => {
     watch(currentViewId, (viewId) => {
@@ -363,7 +365,7 @@ onMounted(() => {
         <div class="relative flex-1 bg-neutral-50 dark:bg-neutral-900">
             <ReviewCanvasToolbar :views="viewerViews" :current-view-id="currentViewId" :selected-tool="selectedTool"
                 @select-view="setActiveView" @select-tool="selectTool" @zoom-in="zoomIn" @zoom-out="zoomOut"
-                @reset-zoom="resetZoom" />
+                @reset-zoom="resetZoom" @flip-view="flipModel" />
 
             <ReviewCanvas ref="viewer" class="h-full w-full" :views="viewerViews" :initial-view-id="currentViewId"
                 :active-tool="selectedTool" :annotations="viewAnnotations" @view-change="setActiveView"

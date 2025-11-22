@@ -24,12 +24,21 @@ def create_app() -> FastAPI:
 def configure_cors(app: FastAPI) -> None:
     """Configure CORS middleware if origins are defined."""
 
-    if not settings.cors_origins:
+    origins = settings.cors_origins
+
+    # In development, default to allowing local Nuxt dev origins if none are configured.
+    if not origins and settings.debug:
+        origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+
+    if not origins:
         return
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.cors_origins],
+        allow_origins=[str(origin) for origin in origins],
         allow_credentials=settings.cors_allow_credentials,
         allow_methods=settings.cors_allow_methods,
         allow_headers=settings.cors_allow_headers,

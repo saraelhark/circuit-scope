@@ -12,6 +12,8 @@ export interface Project {
   description: string | null
   is_public: boolean
   status: string | null
+  processing_status?: string // "queued" | "processing" | "completed" | "failed"
+  processing_error?: string | null
   created_at: string
   updated_at: string
   files: ProjectFile[]

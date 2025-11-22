@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-from uuid import UUID
+import asyncio
 import logging
 import os
+from typing import Any
+from uuid import UUID
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import Select, func, select
@@ -26,8 +27,51 @@ from app.services.previews import (
 )
 from app.services.storage.base import StorageService
 from db.models import Project, ProjectFile, User
+from db.sessions import async_session_factory
 
 logger = logging.getLogger(__name__)
+
+
+async def run_project_processing_task(
+    storage: StorageService, project_id: UUID, storage_path: str
+) -> None:
+    """Background task to process project archives."""
+    async with async_session_factory() as session:
+        try:
+            project = await session.get(Project, project_id)
+            if not project:
+                logger.error("Project %s not found for processing", project_id)
+                return
+
+            project.processing_status = "processing"
+            await session.commit()
+
+            # Run CPU-bound/blocking processing in a separate thread
+            await asyncio.to_thread(
+                process_project_archive, storage, project_id, storage_path
+            )
+
+            # Re-fetch project to avoid detached instance issues if needed,
+            # but session should be alive.
+            project.processing_status = "completed"
+            project.processing_error = None
+            await session.commit()
+
+        except Exception as exc:
+            logger.exception("Processing failed for project %s", project_id)
+            # Ensure we can update the status even if the previous commit failed
+            try:
+                # We might need a rollback if the session is in a bad state
+                await session.rollback()
+                project = await session.get(Project, project_id)
+                if project:
+                    project.processing_status = "failed"
+                    project.processing_error = str(exc)
+                    await session.commit()
+            except Exception:
+                logger.exception(
+                    "Failed to update error status for project %s", project_id
+                )
 
 
 async def _ensure_owner_exists(session: AsyncSession, owner_id: UUID) -> User:
@@ -115,11 +159,7 @@ async def create_project(
         session.add(project_file)
         upload_result = {"filename": filename, "storage_path": storage_path}
 
-        try:
-            process_project_archive(storage, project.id, storage_path)
-        except Exception:
-            # Failures during preview generation should not block project creation.
-            logger.exception("Preview generation failed for project %s", project.id)
+        # Note: Processing is now handled via background task initiated by the route handler
 
     try:
         await session.commit()

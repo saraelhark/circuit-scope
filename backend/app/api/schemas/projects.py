@@ -40,6 +40,8 @@ class ProjectFileResponse(BaseModel):
 class ProjectResponse(ProjectBase):
     id: UUID
     owner_id: UUID
+    processing_status: str
+    processing_error: str | None = None
     created_at: datetime
     updated_at: datetime
     files: list[ProjectFileResponse] = Field(default_factory=list)

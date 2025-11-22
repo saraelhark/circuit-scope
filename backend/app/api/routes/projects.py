@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     Form,
@@ -35,6 +36,7 @@ from app.services.projects import (
     get_project,
     list_projects,
     update_project,
+    run_project_processing_task,
 )
 from app.services.previews import (
     load_preview_index,
@@ -55,6 +57,7 @@ _MEDIA_TYPES = {
     "/", response_model=ProjectUploadResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_project_endpoint(
+    background_tasks: BackgroundTasks,
     project_data: str = Form(..., description="JSON-encoded ProjectCreate payload"),
     upload: UploadFile | None = File(default=None, description="KiCad project ZIP"),
     session: AsyncSession = Depends(get_db_session),
@@ -72,6 +75,15 @@ async def create_project_endpoint(
     project_response, upload_result = await create_project(
         session, storage, payload, upload
     )
+
+    if upload_result:
+        background_tasks.add_task(
+            run_project_processing_task,
+            storage,
+            project_response.id,
+            upload_result["storage_path"],
+        )
+
     return ProjectUploadResponse(project=project_response, upload_result=upload_result)
 
 

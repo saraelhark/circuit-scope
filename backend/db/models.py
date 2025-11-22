@@ -87,6 +87,10 @@ class Project(TimestampMixin, Base):
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     secret_link: Mapped[str | None] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="open", nullable=False)
+    processing_status: Mapped[str] = mapped_column(
+        String, default="queued", nullable=False
+    )
+    processing_error: Mapped[str | None] = mapped_column(Text)
 
     owner: Mapped[User] = relationship(back_populates="projects")
     reviews: Mapped[list["Review"]] = relationship(back_populates="project")

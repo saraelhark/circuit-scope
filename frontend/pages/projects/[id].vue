@@ -30,6 +30,30 @@ const { data, error, refresh, status } = useAsyncData<Project>(
 
 const project = computed(() => data.value)
 
+// Poll project status if processing
+let pollInterval: NodeJS.Timeout | null = null
+
+watch(project, (newVal) => {
+  if (newVal?.processing_status === "queued" || newVal?.processing_status === "processing") {
+    if (!pollInterval) {
+      pollInterval = setInterval(() => {
+        refresh()
+      }, 2000)
+    }
+  } else {
+    if (pollInterval) {
+      clearInterval(pollInterval)
+      pollInterval = null
+      // If just finished processing, refresh previews too
+      refreshPreviews()
+    }
+  }
+}, { immediate: true })
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval)
+})
+
 const projectStatusLabel = computed(() => {
   const status = project.value?.status
   return status && status.toLowerCase() === "closed" ? "Closed" : "Open"
@@ -39,13 +63,27 @@ const projectStatusVariant = computed(() =>
   projectStatusLabel.value === "Closed" ? "secondary" : "success",
 )
 
-const { data: previewData, status: previewStatus } = useAsyncData<ProjectPreviewResponse>(
+const { data: previewData, status: previewStatus, refresh: refreshPreviews } = useAsyncData<ProjectPreviewResponse>(
   `project-${projectId.value}-previews`,
   () => getProjectPreviews(projectId.value),
   {
     watch: [projectId],
+    immediate: false, // Wait until we know processing is done or check manually
   },
 )
+
+// Trigger preview load when mounted if ready
+onMounted(() => {
+  if (project.value?.processing_status === 'completed') {
+    refreshPreviews()
+  }
+})
+// Also watch for project changes to trigger preview load if completed
+watch(project, (p) => {
+  if (p?.processing_status === 'completed' && !previewData.value) {
+    refreshPreviews()
+  }
+})
 
 const previews = computed(() => previewData.value)
 
@@ -104,6 +142,26 @@ async function shareProject() {
       </div>
 
       <div v-else class="flex flex-col gap-10">
+
+        <!-- Processing Status Alerts -->
+        <div v-if="project.processing_status === 'queued' || project.processing_status === 'processing'"
+          class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+          <div class="flex items-center gap-3">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent"></div>
+            <p class="font-medium">Processing project assets...</p>
+          </div>
+          <p class="mt-1 text-sm ml-7 opacity-90">
+            This may take a few moments. The page will update automatically.
+          </p>
+        </div>
+
+        <div v-else-if="project.processing_status === 'failed'"
+          class="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+          <h3 class="font-semibold flex items-center gap-2">
+            <span>Processing Failed</span>
+          </h3>
+          <p class="mt-1 text-sm">{{ project.processing_error || "An unknown processing error occurred." }}</p>
+        </div>
 
         <div class="flex flex-col gap-4 border-b pb-4">
           <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

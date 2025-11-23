@@ -59,6 +59,7 @@ _MEDIA_TYPES = {
     "/", response_model=ProjectUploadResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_project_endpoint(
+    request: Request,
     background_tasks: BackgroundTasks,
     project_data: str = Form(..., description="JSON-encoded ProjectCreate payload"),
     upload: UploadFile | None = File(default=None, description="KiCad project ZIP"),

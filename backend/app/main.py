@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.services.storage.factory import create_storage_service
 
 
@@ -14,6 +18,10 @@ def create_app() -> FastAPI:
     """Application factory for FastAPI instance."""
 
     app = FastAPI(title=settings.app_name, debug=settings.debug)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+
     app.state.storage_service = create_storage_service(settings)
     configure_cors(app)
     register_routers(app)

@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     storage_s3_secret_key: str | None = None
     storage_s3_endpoint: str | None = None
 
+    frontend_secret_key: str = Field(
+        title="Frontend secret key",
+        description="Secret key for frontend-to-backend authentication",
+        required=True,
+    )
+
     kicad_cli_path: str = Field(
         default="kicad-cli",
         description="Executable used for KiCad command-line operations",

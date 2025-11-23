@@ -30,6 +30,7 @@ export default defineNuxtConfig({
     },
     private: {
       backendUrl: process.env.NUXT_PRIVATE_BACKEND_URL,
+      frontendSecretKey: process.env.NUXT_PRIVATE_FRONTEND_SECRET_KEY,
       // Auth.js configuration
       authSecret: process.env.NUXT_AUTH_SECRET,
       googleClientId: process.env.NUXT_GOOGLE_CLIENT_ID,

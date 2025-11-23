@@ -1,13 +1,12 @@
 """Routes for comment threads and comments."""
 
-from __future__ import annotations
-
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
+from app.core.rate_limit import limiter
 from app.api.schemas.comment_threads import (
     CommentThreadCreate,
     CommentThreadListResponse,
@@ -40,7 +39,9 @@ async def list_comment_threads(
 @router.post(
     "/", response_model=CommentThreadResponse, status_code=status.HTTP_201_CREATED
 )
+@limiter.limit("5/minute")
 async def create_comment_thread(
+    request: Request,
     project_id: UUID,
     payload: CommentThreadCreate,
     session: AsyncSession = Depends(get_db_session),
@@ -54,7 +55,9 @@ async def create_comment_thread(
     response_model=ThreadCommentResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/minute")
 async def create_comment_thread_reply(
+    request: Request,
     project_id: UUID,
     thread_id: UUID,
     payload: ThreadCommentCreate,

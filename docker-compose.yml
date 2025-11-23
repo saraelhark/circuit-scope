@@ -1,5 +1,6 @@
 services:
   backend:
+    platform: linux/amd64 # Using Mac image breaks things
     build:
       context: ./backend
     env_file: ./backend/.env

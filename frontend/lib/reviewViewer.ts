@@ -34,32 +34,27 @@ export function buildViewerViews(
         return aIdx - bIdx
     })
 
-    views.push({
-        id: "pcb-top",
-        label: "PCB Top",
-        asset: topLayout ?? null,
-        fallbackMessage: layouts.length
-            ? "No top-side layout detected."
-            : "No PCB layout previews available.",
-    })
+    const pcbLayers: PreviewAsset[] = []
+    if (topLayout) pcbLayers.push(topLayout)
+    pcbLayers.push(...innerLayers)
+    if (bottomLayout) pcbLayers.push(bottomLayout)
 
-    innerLayers.forEach((layer) => {
+    if (pcbLayers.length > 0) {
         views.push({
-            id: layer.id,
-            label: layer.title || `Inner ${layer.id}`,
-            asset: layer,
-            fallbackMessage: "Layer preview not available.",
+            id: "pcb-layout",
+            label: "PCB Layout",
+            asset: topLayout ?? pcbLayers[0],
+            layers: pcbLayers,
+            fallbackMessage: "No PCB layout previews available.",
         })
-    })
-
-    views.push({
-        id: "pcb-bottom",
-        label: "PCB Bottom",
-        asset: bottomLayout ?? null,
-        fallbackMessage: layouts.length
-            ? "No bottom-side layout detected."
-            : "No additional PCB layout previews available.",
-    })
+    } else {
+        views.push({
+            id: "pcb-layout",
+            label: "PCB Layout",
+            asset: null,
+            fallbackMessage: "No PCB layout previews available.",
+        })
+    }
 
     const modelAsset = models[0]
     if (modelAsset) {

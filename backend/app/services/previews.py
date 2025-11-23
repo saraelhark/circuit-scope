@@ -278,21 +278,21 @@ def _render_board_svgs(source: Path, output_dir: Path) -> list[dict[str, Any]]:
     layer_specs: list[tuple[str, str, list[str], list[str]]] = [
         (
             "front",
-            "Front copper",
+            "Front",
             ["F.Cu", "F.Mask", "F.SilkS", "Edge.Cuts", "User.Drawings"],
             [],
         ),
         (
             "back",
-            "Back copper",
+            "Bottom",
             ["B.Cu", "B.Mask", "B.SilkS", "Edge.Cuts", "User.Drawings"],
-            ["--mirror"],
+            [],
         ),
     ]
 
-    # Add specs for inner layers (In1.Cu ... In30.Cu)
+    # Add specs for inner layers (In1.Cu ... In6.Cu)
     # We try to render them; if the output is empty/invalid, we skip adding them to the index.
-    for i in range(1, 31):
+    for i in range(1, 7):
         layer_name = f"In{i}.Cu"
         layer_specs.append(
             (

@@ -8,5 +8,6 @@ export type ViewerView = {
     asset?: PreviewAsset | null
     fallbackMessage?: string
     pages?: PreviewAsset[]
+    layers?: PreviewAsset[]
     kind?: ViewerKind
 }

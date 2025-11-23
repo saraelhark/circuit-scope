@@ -100,3 +100,4 @@ General tips:
 
 - Only default library components are gonna be in the 3d model
 - Newer KiCAD CLI (currently 9) support old KiCAD versions (the opposite is not true).
+- Support only for boards with up to 8 layers

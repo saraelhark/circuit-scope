@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { Button } from "~/components/ui/button"
+import { Checkbox } from "~/components/ui/checkbox"
+import { Label } from "~/components/ui/label"
 
 import ProjectModelViewer from "~/components/projects/ProjectModelViewer.vue"
 import type { PreviewAsset } from "~/types/api/projects"
@@ -59,6 +61,12 @@ const modelViewerRef = ref<InstanceType<typeof ProjectModelViewer> | null>(null)
 
 const activeView = computed(() => props.views.find((view) => view.id === activeViewId.value) ?? props.views[0])
 const activeAsset = computed<PreviewAsset | null | undefined>(() => activeView.value?.asset)
+
+// Multi-layer support
+const availableLayers = computed(() => activeView.value?.layers ?? [])
+const isMultiLayer = computed(() => availableLayers.value.length > 0)
+const visibleLayerIds = ref<Set<string>>(new Set())
+
 const displayAsset = computed<PreviewAsset | null>(() => activeAsset.value ?? null)
 const displayAssetKey = computed(() => displayAsset.value?.url ?? displayAsset.value?.path ?? "")
 const displayAssetSrc = computed(() => displayAsset.value?.url ?? "")
@@ -68,14 +76,34 @@ const displayAssetAlt = computed(
 
 const is3DView = computed(() => activeView.value?.kind === "3d")
 const has2DAsset = computed(() => {
+  if (isMultiLayer.value) return visibleLayerIds.value.size > 0
   const asset = displayAsset.value
   return Boolean(!is3DView.value && asset?.url && !assetError.value)
 })
-const isLayoutView = computed(() => !is3DView.value && activeView.value?.id?.startsWith("pcb"))
+const isLayoutView = computed(() => !is3DView.value && (activeView.value?.id?.startsWith("pcb") || isMultiLayer.value))
 const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
 const showControlsBar = computed(() => props.showControls !== false)
 const showZoomControls = computed(() => showControlsBar.value && !is3DView.value)
 const canFlipModel = computed(() => is3DView.value && Boolean(activeAsset.value?.url))
+
+const firstVisibleLayerId = computed(() => {
+  if (!isMultiLayer.value) return null
+  for (const layer of availableLayers.value) {
+    if (visibleLayerIds.value.has(layer.id)) return layer.id
+  }
+  return null
+})
+
+const bottomVisibleLayerId = computed(() => {
+  if (!isMultiLayer.value) return null
+  let last: string | null = null
+  for (const layer of availableLayers.value) {
+    if (visibleLayerIds.value.has(layer.id)) {
+      last = layer.id
+    }
+  }
+  return last
+})
 
 watch(
   () => props.views,
@@ -104,8 +132,30 @@ watch(activeViewId, (value, _old) => {
 })
 
 watch(
+  () => activeView.value,
+  (view) => {
+    if (view?.layers?.length) {
+      // Default to showing Top and Bottom layers if present
+      const defaults = view.layers.filter((l) =>
+        l.id === "front" || l.id === "back" || l.id === "pcb-top" || l.id === "pcb-bottom"
+      ).map((l) => l.id)
+
+      // If no standard layers found but layers exist, show the first one
+      if (defaults.length === 0 && view.layers.length > 0) {
+        defaults.push(view.layers[0].id)
+      }
+      visibleLayerIds.value = new Set(defaults)
+    } else {
+      visibleLayerIds.value = new Set()
+    }
+  },
+  { immediate: true }
+)
+
+watch(
   () => displayAsset.value?.url,
   () => {
+    if (isMultiLayer.value) return // Handled by layer loading
     assetError.value = null
     isAssetLoaded.value = false
     nextTick(() => {
@@ -226,7 +276,9 @@ function handleAssetLoad() {
 }
 
 function handleAssetError() {
-  assetError.value = "Failed to load asset"
+  if (!isMultiLayer.value) {
+    assetError.value = "Failed to load asset"
+  }
 }
 
 function handleCanvasClick(event: MouseEvent) {
@@ -280,6 +332,17 @@ function handleModelBounds(rect: DOMRect) {
     assetBounds.value = new DOMRect(rect.x, rect.y, rect.width, rect.height)
   }
 }
+
+function toggleLayer(layerId: string, visible: boolean) {
+  const next = new Set(visibleLayerIds.value)
+  if (visible) {
+    next.add(layerId)
+  } else {
+    next.delete(layerId)
+  }
+  visibleLayerIds.value = next
+}
+
 defineExpose({ adjustZoom, resetView })
 </script>
 
@@ -343,14 +406,44 @@ defineExpose({ adjustZoom, resetView })
                 </div>
 
                 <div v-else class="relative max-h-[70vh] max-w-[80vw]" :style="layoutBackgroundStyle">
-                  <img ref="imageRef" :key="displayAssetKey" :src="displayAssetSrc" :alt="displayAssetAlt"
-                    draggable="false" @dragstart.prevent loading="lazy" decoding="async"
-                    class="max-h-[70vh] max-w-[80vw]" @load="handleAssetLoad" @error="handleAssetError" />
-                  <div v-if="!isAssetLoaded" class="absolute inset-0" />
-                  <div class="pointer-events-none absolute inset-0">
+                  <template v-if="isMultiLayer">
+                    <template v-for="(layer, index) in availableLayers" :key="layer.id">
+                      <img v-if="visibleLayerIds.has(layer.id)" :src="layer.url || ''" :alt="layer.title"
+                        draggable="false" @dragstart.prevent loading="lazy" decoding="async"
+                        class="max-h-[70vh] max-w-[80vw] transition-opacity duration-200"
+                        :class="layer.id === firstVisibleLayerId ? 'relative' : 'absolute left-0 top-0'" :style="{
+                          zIndex: availableLayers.length - index,
+                          opacity: (visibleLayerIds.size > 1 && layer.id !== bottomVisibleLayerId) ? 0.8 : 1,
+                          mixBlendMode: visibleLayerIds.size > 1 ? 'screen' : 'normal'
+                        }"
+                        :ref="(el) => { if (layer.id === firstVisibleLayerId || (visibleLayerIds.has(layer.id) && !imageRef)) imageRef = el as HTMLImageElement }"
+                        @load="handleAssetLoad" @error="handleAssetError" />
+                    </template>
+                  </template>
+                  <template v-else>
+                    <img ref="imageRef" :key="displayAssetKey" :src="displayAssetSrc" :alt="displayAssetAlt"
+                      draggable="false" @dragstart.prevent loading="lazy" decoding="async"
+                      class="max-h-[70vh] max-w-[80vw]" @load="handleAssetLoad" @error="handleAssetError" />
+                  </template>
+                  <div v-if="!isAssetLoaded && !isMultiLayer" class="absolute inset-0" />
+                  <div class="pointer-events-none absolute inset-0" :style="{ zIndex: 100 }">
                     <slot name="overlay" :view="activeView" :asset="displayAsset" :image-bounds="assetBounds" />
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Layer Controls -->
+          <div v-if="isMultiLayer"
+            class="absolute right-4 top-4 z-20 rounded-md border bg-card/90 p-3 shadow-sm backdrop-blur"
+            @pointerdown.stop @dblclick.stop>
+            <h4 class="mb-2 text-xs font-semibold text-muted-foreground">Layers</h4>
+            <div class="flex flex-col gap-2">
+              <div v-for="layer in availableLayers" :key="layer.id" class="flex items-center gap-2">
+                <Checkbox :id="`layer-${layer.id}`" :model-value="visibleLayerIds.has(layer.id)"
+                  @update:model-value="(val: boolean) => toggleLayer(layer.id, val)" />
+                <Label :for="`layer-${layer.id}`" class="text-xs cursor-pointer select-none">{{ layer.title }}</Label>
               </div>
             </div>
           </div>

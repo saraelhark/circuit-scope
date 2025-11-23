@@ -17,15 +17,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
     KICAD9_3DMODEL_DIR=/usr/share/kicad/3dmodels \
     PATH="/opt/venv/bin:$PATH"
 
-# Base system packages + KiCad
-# Combined to reduce layers and cleanup in one go
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         software-properties-common \
         python3 \
-        python3-dev && \
-    add-apt-repository -y ppa:kicad/kicad-9.0-releases && \
+        python3-dev \
+        build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+    # KiCad CLI tools (via official PPA for KiCad 9) + official 3D model libraries
+RUN add-apt-repository -y ppa:kicad/kicad-9.0-releases && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         kicad \

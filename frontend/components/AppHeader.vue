@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bell, User, LogOut, Folder } from 'lucide-vue-next'
+import { Bell, User, LogOut, Folder, Github } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { onClickOutside } from '@vueuse/core'
 
@@ -48,6 +48,12 @@ const handleSignOut = async () => {
             </div>
 
             <div class="flex items-center gap-4">
+                <Button as="a" href="https://github.com/saraelhark/circuit-scope" target="_blank" rel="noreferrer"
+                    variant="ghost" size="icon" class="text-muted-foreground hover:text-foreground">
+                    <Github class="h-5 w-5" />
+                    <span class="sr-only">Open Circuit Scope on GitHub</span>
+                </Button>
+
                 <template v-if="isSignedIn">
                     <NuxtLink to="/projects/new">
                         <Button size="sm">Upload Project</Button>

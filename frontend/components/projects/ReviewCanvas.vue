@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
+import { Checkbox } from "~/components/ui/checkbox"
+import { Label } from "~/components/ui/label"
 
 import ProjectModelViewer from "~/components/projects/ProjectModelViewer.vue"
 import type { ViewerView } from "~/types/viewer"
@@ -64,10 +66,35 @@ const activeViewId = ref<string | null>(null)
 const activeView = computed(() => props.views.find((v) => v.id === activeViewId.value) ?? props.views[0])
 const composedAsset = computed(() => activeView.value?.asset ?? null)
 const activeAsset = computed(() => composedAsset.value ?? activeView.value?.asset)
+
+// Multi-layer support
+const availableLayers = computed(() => activeView.value?.layers ?? [])
+const isMultiLayer = computed(() => availableLayers.value.length > 0)
+const visibleLayerIds = ref<Set<string>>(new Set())
+
 const is3DView = computed(() => activeView.value?.kind === "3d")
-const isLayoutView = computed(() => !is3DView.value && activeView.value?.id?.startsWith("pcb"))
+const isLayoutView = computed(() => !is3DView.value && (activeView.value?.id?.startsWith("pcb") || isMultiLayer.value))
 const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
 const annotationColor = "#7CFF00"
+
+const firstVisibleLayerId = computed(() => {
+  if (!isMultiLayer.value) return null
+  for (const layer of availableLayers.value) {
+    if (visibleLayerIds.value.has(layer.id)) return layer.id
+  }
+  return null
+})
+
+const bottomVisibleLayerId = computed(() => {
+  if (!isMultiLayer.value) return null
+  let last: string | null = null
+  for (const layer of availableLayers.value) {
+    if (visibleLayerIds.value.has(layer.id)) {
+      last = layer.id
+    }
+  }
+  return last
+})
 
 function setActiveView(viewId: string) {
   if (activeViewId.value === viewId) return
@@ -94,6 +121,24 @@ watch(activeViewId, (val) => {
   emit("viewChange", val)
   resetView()
 })
+
+watch(
+  () => activeView.value,
+  (view) => {
+    if (view?.layers?.length) {
+      const defaults = view.layers.filter((l) =>
+        l.id === "front" || l.id === "back" || l.id === "pcb-top" || l.id === "pcb-bottom"
+      ).map((l) => l.id)
+      if (defaults.length === 0 && view.layers.length > 0) {
+        defaults.push(view.layers[0].id)
+      }
+      visibleLayerIds.value = new Set(defaults)
+    } else {
+      visibleLayerIds.value = new Set()
+    }
+  },
+  { immediate: true }
+)
 
 function adjustZoom(direction: 1 | -1) {
   const next = Number((zoom.value + direction * zoomStep).toFixed(2))
@@ -312,6 +357,16 @@ function flipModelOrientation() {
   modelViewerRef.value?.toggleFlip()
 }
 
+function toggleLayer(layerId: string, visible: boolean) {
+  const next = new Set(visibleLayerIds.value)
+  if (visible) {
+    next.add(layerId)
+  } else {
+    next.delete(layerId)
+  }
+  visibleLayerIds.value = next
+}
+
 onMounted(() => {
   window.addEventListener("resize", updateAssetBounds)
 })
@@ -359,7 +414,40 @@ defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrienta
         <div class="transition-transform duration-75 ease-out"
           :style="{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${zoom})` }">
           <div class="relative flex items-center justify-center">
-            <div v-if="activeAsset?.url" class="relative">
+
+            <!-- Multi-layer Support -->
+            <div v-if="isMultiLayer" class="relative max-h-[70vh] max-w-[80vw]">
+              <template v-for="(layer, index) in availableLayers" :key="layer.id">
+                <img v-if="visibleLayerIds.has(layer.id)" :src="layer.url || ''" :alt="layer.title" draggable="false"
+                  @dragstart.prevent loading="lazy" decoding="async"
+                  class="max-h-[70vh] max-w-[80vw] transition-opacity duration-200"
+                  :class="layer.id === firstVisibleLayerId ? 'relative' : 'absolute left-0 top-0'" :style="{
+                    zIndex: availableLayers.length - index,
+                    opacity: (visibleLayerIds.size > 1 && layer.id !== bottomVisibleLayerId) ? 0.8 : 1,
+                    mixBlendMode: visibleLayerIds.size > 1 ? 'screen' : 'normal'
+                  }"
+                  :ref="(el) => { if (layer.id === firstVisibleLayerId || (visibleLayerIds.has(layer.id) && !imageRef)) imageRef = el as HTMLImageElement }"
+                  @load="handleImageLoad" />
+              </template>
+              <!-- Annotations Overlay (for multi-layer) -->
+              <svg v-if="assetBounds && (activeViewShapes.length || draftShape)"
+                class="pointer-events-none absolute inset-0" :viewBox="`0 0 1 1`" preserveAspectRatio="none"
+                :style="{ overflow: 'visible', zIndex: 100 }">
+                <template v-for="shape in activeViewShapes" :key="shape.id">
+                  <circle :cx="(shape.startX + shape.endX) / 2" :cy="(shape.startY + shape.endY) / 2"
+                    :r="Math.max(Math.abs(shape.endX - shape.startX), Math.abs(shape.endY - shape.startY)) / 2"
+                    :stroke="annotationColor" stroke-width="0.002" fill="none" />
+                </template>
+                <template v-if="draftShape">
+                  <circle :cx="(draftShape.startX + draftShape.currentX) / 2"
+                    :cy="(draftShape.startY + draftShape.currentY) / 2"
+                    :r="Math.max(Math.abs(draftShape.currentX - draftShape.startX), Math.abs(draftShape.currentY - draftShape.startY)) / 2"
+                    :stroke="annotationColor" stroke-width="0.002" fill="none" stroke-dasharray="0.006" />
+                </template>
+              </svg>
+            </div>
+
+            <div v-else-if="activeAsset?.url" class="relative">
               <img ref="imageRef" :src="activeAsset.url" :alt="activeAsset.title ?? 'Preview asset'" draggable="false"
                 @dragstart.prevent loading="lazy" decoding="async" @load="handleImageLoad"
                 class="max-h-[70vh] max-w-[80vw]" />
@@ -386,6 +474,21 @@ defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrienta
           </div>
         </div>
       </div>
+
+      <!-- Layer Controls -->
+      <div v-if="isMultiLayer"
+        class="absolute right-4 top-4 z-20 rounded-md border bg-card/90 p-3 shadow-sm backdrop-blur" @pointerdown.stop
+        @dblclick.stop>
+        <h4 class="mb-2 text-xs font-semibold text-muted-foreground">Layers</h4>
+        <div class="flex flex-col gap-2">
+          <div v-for="layer in availableLayers" :key="layer.id" class="flex items-center gap-2">
+            <Checkbox :id="`layer-${layer.id}`" :model-value="visibleLayerIds.has(layer.id)"
+              @update:model-value="(val: boolean) => toggleLayer(layer.id, val)" />
+            <Label :for="`layer-${layer.id}`" class="text-xs cursor-pointer select-none">{{ layer.title }}</Label>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>

@@ -65,6 +65,9 @@ class User(TimestampMixin, Base):
     thread_comments: Mapped[list["ThreadComment"]] = relationship(
         back_populates="author"
     )
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="user", foreign_keys="Notification.user_id"
+    )
 
 
 class Project(TimestampMixin, Base):
@@ -102,6 +105,7 @@ class Project(TimestampMixin, Base):
         back_populates="project"
     )
     files: Mapped[list["ProjectFile"]] = relationship(back_populates="project")
+    notifications: Mapped[list["Notification"]] = relationship(back_populates="project")
 
     @property
     def open_comment_count(self) -> int:
@@ -225,6 +229,7 @@ class CommentThread(TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="ThreadComment.created_at",
     )
+    notifications: Mapped[list["Notification"]] = relationship(back_populates="thread")
 
 
 class ThreadComment(TimestampMixin, Base):
@@ -261,6 +266,44 @@ class ThreadComment(TimestampMixin, Base):
     replies: Mapped[list["ThreadComment"]] = relationship(back_populates="parent")
 
 
+class Notification(TimestampMixin, Base):
+    __tablename__ = "notifications"
+    __table_args__ = (
+        Index("idx_notifications_user", "user_id"),
+        Index("idx_notifications_unread", "user_id", "is_read"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    user_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    actor_id: Mapped[UUIDType | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    project_id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    thread_id: Mapped[UUIDType | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("comment_threads.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    message: Mapped[str] = mapped_column(String, nullable=False)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    user: Mapped[User] = relationship(
+        back_populates="notifications", foreign_keys=[user_id]
+    )
+    actor: Mapped[User | None] = relationship(foreign_keys=[actor_id])
+    project: Mapped[Project] = relationship(back_populates="notifications")
+    thread: Mapped[CommentThread | None] = relationship(back_populates="notifications")
+
+
 __all__ = [
     "AnalyticsEvent",
     "Base",
@@ -270,4 +313,5 @@ __all__ = [
     "User",
     "CommentThread",
     "ThreadComment",
+    "Notification",
 ]

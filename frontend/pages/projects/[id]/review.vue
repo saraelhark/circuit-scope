@@ -92,8 +92,32 @@ watch(threads, (current) => {
         return
     }
 
+    const threadFromQuery = route.query.thread as string
+    if (threadFromQuery && current.some(t => t.id === threadFromQuery)) {
+        if (activeThreadId.value !== threadFromQuery) {
+            activeThreadId.value = threadFromQuery
+            const thread = current.find(t => t.id === threadFromQuery)
+            if (thread?.view_id) {
+                setActiveView(thread.view_id)
+            }
+        }
+        return
+    }
+
     if (!current.some((thread) => thread.id === activeThreadId.value)) {
         activeThreadId.value = current[0].id
+    }
+})
+
+watch(() => route.query.thread, (newThreadId) => {
+    if (newThreadId && typeof newThreadId === 'string') {
+        const thread = threads.value.find(t => t.id === newThreadId)
+        if (thread) {
+            activeThreadId.value = thread.id
+            if (thread.view_id) {
+                setActiveView(thread.view_id)
+            }
+        }
     }
 })
 

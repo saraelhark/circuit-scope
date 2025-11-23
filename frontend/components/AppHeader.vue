@@ -1,22 +1,41 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Bell, User, LogOut, Folder, Github } from 'lucide-vue-next'
+import { ref, computed, onMounted, watch } from 'vue'
+import { Bell, User, LogOut, Folder, Github, Check } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { onClickOutside } from '@vueuse/core'
 
 const { data: session, status, signOut } = useAuth()
+const { backendUser } = useBackendUser()
 const user = computed(() => session.value?.user)
 const isSignedIn = computed(() => status.value === 'authenticated')
 
 const isUserMenuOpen = ref(false)
 const userMenuRef = ref(null)
 
+const isNotificationsOpen = ref(false)
+const notificationsRef = ref(null)
+const unreadCount = ref(0)
+const notifications = ref<any[]>([])
+
 function toggleUserMenu() {
     isUserMenuOpen.value = !isUserMenuOpen.value
+    if (isUserMenuOpen.value) isNotificationsOpen.value = false
+}
+
+function toggleNotifications() {
+    isNotificationsOpen.value = !isNotificationsOpen.value
+    if (isNotificationsOpen.value) {
+        isUserMenuOpen.value = false
+        fetchNotifications()
+    }
 }
 
 onClickOutside(userMenuRef, () => {
     isUserMenuOpen.value = false
+})
+
+onClickOutside(notificationsRef, () => {
+    isNotificationsOpen.value = false
 })
 
 const handleSignOut = async () => {
@@ -28,6 +47,86 @@ const handleSignOut = async () => {
         console.error('Sign out failed:', error)
     }
 }
+
+async function fetchUnreadCount() {
+    if (!backendUser.value?.id) return
+    try {
+        const res = await $fetch<{ count: number }>('/api/v1/notifications/unread-count', {
+            headers: { 'X-User-Id': backendUser.value.id }
+        })
+        unreadCount.value = res.count
+    } catch (e) {
+        console.error('Failed to fetch unread count', e)
+    }
+}
+
+async function fetchNotifications() {
+    if (!backendUser.value?.id) return
+    try {
+        notifications.value = await $fetch<any[]>('/api/v1/notifications', {
+            headers: { 'X-User-Id': backendUser.value.id }
+        })
+    } catch (e) {
+        console.error('Failed to fetch notifications', e)
+    }
+}
+
+async function markAsRead(notification: any) {
+    if (!backendUser.value?.id) return
+
+    if (!notification.is_read) {
+        notification.is_read = true
+        unreadCount.value = Math.max(0, unreadCount.value - 1)
+
+        try {
+            await $fetch(`/api/v1/notifications/${notification.id}/read`, {
+                method: 'POST',
+                headers: { 'X-User-Id': backendUser.value.id }
+            })
+        } catch (e) {
+            console.error('Failed to mark as read', e)
+        }
+    }
+
+    if (notification.project_id) {
+        isNotificationsOpen.value = false
+        // For thread/comment notifications, go to the review page
+        if (notification.thread_id) {
+            await navigateTo(`/projects/${notification.project_id}/review?thread=${notification.thread_id}`)
+        } else {
+            await navigateTo(`/projects/${notification.project_id}`)
+        }
+    }
+}
+
+async function markAllRead() {
+    if (!backendUser.value?.id) return
+    try {
+        await $fetch('/api/v1/notifications/read-all', {
+            method: 'POST',
+            headers: { 'X-User-Id': backendUser.value.id }
+        })
+        unreadCount.value = 0
+        notifications.value.forEach(n => n.is_read = true)
+    } catch (e) {
+        console.error('Failed to mark all read', e)
+    }
+}
+
+let pollInterval: NodeJS.Timeout
+onMounted(() => {
+    if (backendUser.value?.id) fetchUnreadCount()
+    pollInterval = setInterval(() => {
+        if (backendUser.value?.id && !isNotificationsOpen.value) {
+            fetchUnreadCount()
+        }
+    }, 30000) // 30s
+})
+
+watch(() => backendUser.value?.id, (newId) => {
+    if (newId) fetchUnreadCount()
+})
+
 </script>
 
 <template>
@@ -59,11 +158,48 @@ const handleSignOut = async () => {
                         <Button size="sm">Upload Project</Button>
                     </NuxtLink>
 
-                    <div class="relative">
-                        <Button variant="ghost" size="icon" class="relative">
+                    <div class="relative" ref="notificationsRef">
+                        <Button variant="ghost" size="icon" class="relative" @click="toggleNotifications">
                             <Bell class="h-5 w-5" />
-                            <span class="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 opacity-0"></span>
+                            <span v-if="unreadCount > 0"
+                                class="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500"></span>
                         </Button>
+
+                        <div v-if="isNotificationsOpen"
+                            class="absolute right-0 mt-2 w-80 origin-top-right rounded-md border bg-popover shadow-md focus:outline-none animate-in fade-in zoom-in-95 duration-200 max-h-[80vh] overflow-y-auto z-50">
+                            <div class="flex items-center justify-between px-4 py-3 border-b">
+                                <h3 class="font-semibold text-sm">Notifications</h3>
+                                <button v-if="unreadCount > 0" @click="markAllRead"
+                                    class="text-xs text-primary hover:underline">
+                                    Mark all read
+                                </button>
+                            </div>
+
+                            <div v-if="notifications.length === 0"
+                                class="p-4 text-center text-sm text-muted-foreground">
+                                No notifications
+                            </div>
+
+                            <div v-else class="divide-y">
+                                <div v-for="notification in notifications" :key="notification.id"
+                                    @click="markAsRead(notification)"
+                                    class="p-3 hover:bg-accent cursor-pointer transition-colors text-sm"
+                                    :class="{ 'bg-primary/5': !notification.is_read }">
+                                    <div class="flex gap-3">
+                                        <div class="flex-1 space-y-1">
+                                            <p class="leading-none" :class="{ 'font-medium': !notification.is_read }">
+                                                {{ notification.message }}
+                                            </p>
+                                            <p class="text-xs text-muted-foreground">
+                                                {{ new Date(notification.created_at).toLocaleDateString() }}
+                                            </p>
+                                        </div>
+                                        <div v-if="!notification.is_read"
+                                            class="h-2 w-2 mt-1 rounded-full bg-primary shrink-0"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="relative ml-2" ref="userMenuRef">
@@ -77,7 +213,7 @@ const handleSignOut = async () => {
                         </button>
 
                         <div v-if="isUserMenuOpen"
-                            class="absolute right-0 mt-2 w-56 origin-top-right rounded-md border bg-popover p-1 shadow-md focus:outline-none animate-in fade-in zoom-in-95 duration-200">
+                            class="absolute right-0 mt-2 w-56 origin-top-right rounded-md border bg-popover p-1 shadow-md focus:outline-none animate-in fade-in zoom-in-95 duration-200 z-50">
                             <div class="px-2 py-1.5 text-sm font-semibold">
                                 {{ user?.name || user?.email }}
                             </div>
@@ -106,4 +242,4 @@ const handleSignOut = async () => {
             </div>
         </div>
     </header>
-</template>
+</template>>

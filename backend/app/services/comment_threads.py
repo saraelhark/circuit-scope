@@ -21,7 +21,8 @@ from app.api.schemas.comment_threads import (
     ThreadResolutionUpdate,
 )
 from app.services.projects import ensure_project_exists
-from db.models import CommentThread, ThreadComment
+from app.services.notifications import create_notification
+from db.models import CommentThread, ThreadComment, Project
 
 
 async def list_threads(
@@ -98,6 +99,18 @@ async def create_thread(
     )
     thread_with_comments = result.scalar_one()
 
+    project = await session.get(Project, project_id)
+    if project and project.owner_id != created_by_id:
+        await create_notification(
+            session,
+            user_id=project.owner_id,
+            actor_id=created_by_id,
+            project_id=project_id,
+            thread_id=thread.id,
+            type="comment_thread_created",
+            message=f"New comment thread on {project.name}",
+        )
+
     return _serialize_thread(thread_with_comments)
 
 
@@ -138,6 +151,34 @@ async def add_comment(
     result = await session.execute(query)
     comment = result.scalar_one()
 
+    project = await session.get(Project, project_id)
+    if project:
+        if project.owner_id != payload.author_id:
+            await create_notification(
+                session,
+                user_id=project.owner_id,
+                actor_id=payload.author_id,
+                project_id=project_id,
+                thread_id=thread.id,
+                type="comment_reply",
+                message=f"New reply on {project.name}",
+            )
+
+        if (
+            thread.created_by_id
+            and thread.created_by_id != payload.author_id
+            and thread.created_by_id != project.owner_id
+        ):
+            await create_notification(
+                session,
+                user_id=thread.created_by_id,
+                actor_id=payload.author_id,
+                project_id=project_id,
+                thread_id=thread.id,
+                type="comment_reply",
+                message=f"New reply on your thread in {project.name}",
+            )
+
     return ThreadCommentResponse.model_validate(comment, from_attributes=True)
 
 
@@ -162,6 +203,23 @@ async def update_thread_resolution(
 
     await session.commit()
     await session.refresh(thread)
+
+    if (
+        payload.is_resolved
+        and thread.created_by_id
+        and thread.created_by_id != payload.resolved_by_id
+    ):
+        project = await session.get(Project, project_id)
+        if project:
+            await create_notification(
+                session,
+                user_id=thread.created_by_id,
+                actor_id=payload.resolved_by_id,
+                project_id=project_id,
+                thread_id=thread.id,
+                type="thread_resolved",
+                message=f"Your thread on {project.name} was marked as resolved",
+            )
 
     return _serialize_thread(thread)
 

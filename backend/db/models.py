@@ -87,6 +87,7 @@ class Project(TimestampMixin, Base):
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     secret_link: Mapped[str | None] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="open", nullable=False)
+    view_count: Mapped[int] = mapped_column(default=0, nullable=False)
     processing_status: Mapped[str] = mapped_column(
         String, default="queued", nullable=False
     )
@@ -101,6 +102,16 @@ class Project(TimestampMixin, Base):
         back_populates="project"
     )
     files: Mapped[list["ProjectFile"]] = relationship(back_populates="project")
+
+    @property
+    def open_comment_count(self) -> int:
+        """Count of open comment threads."""
+        return sum(1 for thread in self.comment_threads if not thread.is_resolved)
+
+    @property
+    def total_comment_count(self) -> int:
+        """Total count of comment threads."""
+        return len(self.comment_threads)
 
 
 class Review(TimestampMixin, Base):

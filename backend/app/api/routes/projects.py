@@ -38,6 +38,7 @@ from app.services.projects import (
     list_projects,
     update_project,
     run_project_processing_task,
+    increment_project_view,
 )
 from app.services.previews import (
     load_preview_index,
@@ -112,9 +113,19 @@ async def list_projects_endpoint(
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project_endpoint(
     project_id: UUID,
+    request: Request,
+    response: Response,
     session: AsyncSession = Depends(get_db_session),
 ) -> ProjectResponse:
     """Get a project by ID."""
+    # Check for view tracking cookie
+    cookie_name = f"viewed_project_{project_id}"
+    if not request.cookies.get(cookie_name):
+        # Track the view if not already viewed in this session/window
+        await increment_project_view(session, project_id)
+        # Set cookie to prevent multiple counts (valid for 24 hours)
+        response.set_cookie(key=cookie_name, value="true", max_age=86400)
+
     return await get_project(session, project_id)
 
 

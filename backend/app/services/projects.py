@@ -25,10 +25,27 @@ from app.services.previews import (
     process_project_archive,
 )
 from app.services.storage.base import StorageService
-from db.models import Project, ProjectFile, User
+from db.models import Project, ProjectFile, User, AnalyticsEvent
 from db.sessions import async_session_factory
 
 logger = logging.getLogger(__name__)
+
+
+async def increment_project_view(
+    session: AsyncSession, project_id: UUID, user_id: UUID | None = None
+) -> None:
+    """Increment project view count and record analytics event."""
+    project = await session.get(Project, project_id)
+    if project:
+        project.view_count += 1
+
+        event = AnalyticsEvent(
+            project_id=project_id,
+            event_type="project_view",
+            user_id=user_id,
+        )
+        session.add(event)
+        await session.commit()
 
 
 async def run_project_processing_task(
@@ -159,7 +176,7 @@ async def create_project(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create project"
         ) from exc
 
-    await session.refresh(project, attribute_names=["files"])
+    await session.refresh(project, attribute_names=["files", "comment_threads"])
     return ProjectResponse.model_validate(project, from_attributes=True), upload_result
 
 
@@ -181,7 +198,7 @@ async def list_projects(
 
     query: Select[tuple[Project]] = (
         select(Project)
-        .options(selectinload(Project.files))
+        .options(selectinload(Project.files), selectinload(Project.comment_threads))
         .order_by(Project.created_at.desc())
     )
 
@@ -235,7 +252,7 @@ async def update_project(
         setattr(project, field, value)
 
     await session.commit()
-    await session.refresh(project, attribute_names=["files"])
+    await session.refresh(project, attribute_names=["files", "comment_threads"])
     return ProjectResponse.model_validate(project, from_attributes=True)
 
 
@@ -263,7 +280,7 @@ async def get_project_orm_model(session: AsyncSession, project_id: UUID) -> Proj
     """Get a project model."""
     result = await session.execute(
         select(Project)
-        .options(selectinload(Project.files))
+        .options(selectinload(Project.files), selectinload(Project.comment_threads))
         .where(Project.id == project_id)
     )
     project = result.scalar_one_or_none()

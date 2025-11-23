@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MessageSquare } from 'lucide-vue-next'
+import { MessageSquare, Eye } from 'lucide-vue-next'
 import { useTimeAgo } from '@vueuse/core'
 import type { Project } from "~/types/api/projects"
 import ProjectPreviewThumbnail from "~/components/projects/ProjectPreviewThumbnail.vue"
@@ -47,9 +47,13 @@ function formattedDescription(description: string | null) {
             </div>
 
             <div class="flex items-center gap-4 text-xs text-muted-foreground mt-auto">
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-1" title="Comments">
                     <MessageSquare class="h-3.5 w-3.5" />
-                    <span>{{ project.comments_count || 0 }}</span>
+                    <span>{{ project.total_comment_count }}</span>
+                </div>
+                <div class="flex items-center gap-1" title="Views">
+                    <Eye class="h-3.5 w-3.5" />
+                    <span>{{ project.view_count }}</span>
                 </div>
                 <span>{{ timeAgo }}</span>
             </div>

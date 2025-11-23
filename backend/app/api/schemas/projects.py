@@ -42,6 +42,9 @@ class ProjectResponse(ProjectBase):
     owner_id: UUID
     processing_status: str
     processing_error: str | None = None
+    view_count: int = 0
+    open_comment_count: int = 0
+    total_comment_count: int = 0
     created_at: datetime
     updated_at: datetime
     files: list[ProjectFileResponse] = Field(default_factory=list)

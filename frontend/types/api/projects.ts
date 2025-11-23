@@ -17,8 +17,9 @@ export interface Project {
   created_at: string
   updated_at: string
   files: ProjectFile[]
-  views?: number
-  comments_count?: number
+  view_count: number
+  open_comment_count: number
+  total_comment_count: number
 }
 
 export interface ProjectListResponse {

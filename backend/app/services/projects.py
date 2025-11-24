@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+import shutil
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import HTTPException, UploadFile, status
@@ -25,7 +26,7 @@ from app.services.previews import (
     process_project_archive,
 )
 from app.services.storage.base import StorageService
-from db.models import Project, ProjectFile, User, AnalyticsEvent
+from db.models import Project, User, AnalyticsEvent
 from db.sessions import async_session_factory
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ async def increment_project_view(
 
 
 async def run_project_processing_task(
-    storage: StorageService, project_id: UUID, storage_path: str
+    storage: StorageService, project_id: UUID, local_zip_path: Path
 ) -> None:
     """Background task to process project archives."""
     async with async_session_factory() as session:
@@ -62,7 +63,7 @@ async def run_project_processing_task(
             project.processing_status = "processing"
             await session.commit()
 
-            await process_project_archive(storage, project_id, storage_path)
+            await process_project_archive(storage, project_id, local_zip_path)
 
             project.processing_status = "completed"
             project.processing_error = None
@@ -81,6 +82,13 @@ async def run_project_processing_task(
                 logger.exception(
                     "Failed to update error status for project %s", project_id
                 )
+        finally:
+            # Cleanup the temporary ZIP file
+            try:
+                if local_zip_path.exists():
+                    local_zip_path.unlink()
+            except OSError:
+                logger.warning("Failed to delete temp file %s", local_zip_path)
 
 
 async def _ensure_owner_exists(session: AsyncSession, owner_id: UUID) -> User:
@@ -94,10 +102,9 @@ async def _ensure_owner_exists(session: AsyncSession, owner_id: UUID) -> User:
 
 async def create_project(
     session: AsyncSession,
-    storage: StorageService,
     payload: ProjectCreate,
     upload_file: UploadFile | None,
-) -> tuple[ProjectResponse, dict[str, Any] | None]:
+) -> tuple[ProjectResponse, Path | None]:
     """Create a new project."""
     if payload.owner_id is None:
         owner = User()
@@ -119,7 +126,7 @@ async def create_project(
     session.add(project)
     await session.flush()
 
-    upload_result: dict[str, Any] | None = None
+    upload_path: Path | None = None
 
     if upload_file is not None:
         filename = upload_file.filename
@@ -153,31 +160,38 @@ async def create_project(
                 detail=f"KiCad archive must be {MAX_KICAD_ARCHIVE_SIZE_MB} MB or smaller",
             )
 
-        storage_path = f"projects/{project.id}/{filename}"
+        # Save to temporary location for processing
+        temp_dir = Path("/tmp/uploads")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        upload_path = temp_dir / f"{project.id}_{filename}"
+
         try:
-            await storage.save(storage_path, upload_file.file)
+            with upload_path.open("wb") as buffer:
+                shutil.copyfileobj(file_obj, buffer)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save uploaded file",
+            ) from exc
         finally:
             await upload_file.close()
-
-        project_file = ProjectFile(
-            project=project,
-            filename=filename,
-            file_type="kicad_zip",
-            storage_path=storage_path,
-        )
-        session.add(project_file)
-        upload_result = {"filename": filename, "storage_path": storage_path}
 
     try:
         await session.commit()
     except IntegrityError as exc:
         await session.rollback()
+        # Cleanup temp file if commit fails
+        if upload_path and upload_path.exists():
+            try:
+                upload_path.unlink()
+            except OSError:
+                pass
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create project"
         ) from exc
 
     await session.refresh(project, attribute_names=["files", "comment_threads"])
-    return ProjectResponse.model_validate(project, from_attributes=True), upload_result
+    return ProjectResponse.model_validate(project, from_attributes=True), upload_path
 
 
 async def list_projects(

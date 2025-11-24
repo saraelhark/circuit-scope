@@ -33,7 +33,7 @@ MAX_KICAD_ARCHIVE_SIZE_BYTES: Final = MAX_KICAD_ARCHIVE_SIZE_MB * 1024 * 1024
 
 
 async def process_project_archive(
-    storage: StorageService, project_id: UUID, archive_storage_path: str
+    storage: StorageService, project_id: UUID, archive_path: Path
 ) -> None:
     """Extract the uploaded KiCad archive and render preview assets with KiCad CLI.
 
@@ -43,7 +43,6 @@ async def process_project_archive(
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         work_dir = Path(tmp_dir)
-        local_archive_path = work_dir / "archive.zip"
         extraction_root = work_dir / "extracted"
         previews_root = work_dir / _PREVIEW_DIR_NAME
         schematics_root = previews_root / _SCHEMATIC_DIR
@@ -51,18 +50,8 @@ async def process_project_archive(
         models_root = previews_root / _MODEL_DIR
 
         try:
-            await storage.download(archive_storage_path, local_archive_path)
-        except StorageError:
-            logger.exception(
-                "Unable to download storage path '%s' for project %s",
-                archive_storage_path,
-                project_id,
-            )
-            return
-
-        try:
             extraction_root.mkdir(parents=True, exist_ok=True)
-            with zipfile.ZipFile(local_archive_path) as zip_file:
+            with zipfile.ZipFile(archive_path) as zip_file:
                 _safe_extract(zip_file, extraction_root)
         except (zipfile.BadZipFile, OSError):
             logger.exception(

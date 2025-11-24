@@ -32,12 +32,6 @@ class Settings(BaseSettings):
         default=None, description="Base URL for serving stored files"
     )
 
-    storage_s3_bucket: str | None = None
-    storage_s3_region: str | None = None
-    storage_s3_access_key: str | None = None
-    storage_s3_secret_key: str | None = None
-    storage_s3_endpoint: str | None = None
-
     frontend_secret_key: str = Field(
         title="Frontend secret key",
         description="Secret key for frontend-to-backend authentication",

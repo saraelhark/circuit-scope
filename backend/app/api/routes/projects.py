@@ -75,17 +75,20 @@ async def create_project_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()
         ) from exc
 
-    project_response, upload_result = await create_project(
-        session, storage, payload, upload
-    )
+    project_response, upload_path = await create_project(session, payload, upload)
 
-    if upload_result:
+    upload_result: dict[str, Any] | None = None
+    if upload_path:
         background_tasks.add_task(
             run_project_processing_task,
             storage,
             project_response.id,
-            upload_result["storage_path"],
+            upload_path,
         )
+        upload_result = {
+            "filename": upload.filename if upload else "archive.zip",
+            "status": "processing_queued",
+        }
 
     return ProjectUploadResponse(project=project_response, upload_result=upload_result)
 

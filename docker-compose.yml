@@ -1,45 +1,40 @@
 services:
+#   # Caddy Reverse Proxy - Handles HTTPS and domain routing
+#   caddy:
+#     image: caddy:alpine
+#     restart: always
+#     ports:
+#       - "80:80"
+#       - "443:443"
+#     volumes:
+#       - ./Caddyfile:/etc/caddy/Caddyfile
+#       - caddy_data:/data
+#       - caddy_config:/config
+#     depends_on:
+#       - frontend
+
+  frontend:
+    platform: linux/amd64
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    env_file: ./frontend/.env
+    ports:
+      - "3000:3000" # Exposed for Caddy (internal network) or direct access if needed
+    depends_on:
+      - backend
+
   backend:
     platform: linux/amd64 # Using Mac image breaks things
     build:
       context: ./backend
     env_file: ./backend/.env
-    environment:
-      - PYTHONPATH=/app
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/app:/app/app
-      - ./backend/alembic:/app/alembic
-      - ./backend/alembic.ini:/app/alembic.ini
-      - ./backend/var/storage:/app/var/storage
-    depends_on:
-      - minio
-
-  minio:
-    image: minio/minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_API_CORS_ALLOW_ORIGIN: "*"
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-
-  create-buckets:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until (/usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin) do echo '...waiting...' && sleep 1; done;
-      /usr/bin/mc mb myminio/circuit-scope-local;
-      /usr/bin/mc anonymous set public myminio/circuit-scope-local;
-      exit 0;
-      "
+      - backend_storage:/app/var/storage
 
 volumes:
-  minio_data:
+  backend_storage:
+#  caddy_data:
+#  caddy_config:

@@ -10,7 +10,7 @@ export default defineNuxtConfig({
   auth: {
     isEnabled: true,
     disableServerSideAuth: false,
-    originEnvKey: 'http://localhost:3000/api/auth',
+    // originEnvKey: 'http://localhost:3000/api/auth',
     provider: {
       type: 'authjs'
     },
@@ -32,6 +32,7 @@ export default defineNuxtConfig({
       backendUrl: process.env.NUXT_PRIVATE_BACKEND_URL,
       frontendSecretKey: process.env.NUXT_PRIVATE_FRONTEND_SECRET_KEY,
       // Auth.js configuration
+      authOrigin: process.env.AUTH_ORIGIN,
       authSecret: process.env.NUXT_AUTH_SECRET,
       googleClientId: process.env.NUXT_GOOGLE_CLIENT_ID,
       googleClientSecret: process.env.NUXT_GOOGLE_CLIENT_SECRET,

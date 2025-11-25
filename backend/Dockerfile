@@ -21,19 +21,30 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         software-properties-common \
-        python3 \
-        python3-dev \
-        build-essential && \
-    rm -rf /var/lib/apt/lists/*
-
-    # KiCad CLI tools (via official PPA for KiCad 9) + official 3D model libraries
-RUN add-apt-repository -y ppa:kicad/kicad-9.0-releases && \
+        gpg-agent && \
+    add-apt-repository -y ppa:kicad/kicad-9.0-releases && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         kicad \
         kicad-packages3d && \
+    # Remove KiCad GUI binaries (keep kicad-cli)
+    rm -f /usr/bin/kicad \
+          /usr/bin/pcbnew \
+          /usr/bin/eeschema \
+          /usr/bin/gerbview \
+          /usr/bin/pl_editor \
+          /usr/bin/bitmap2component \
+          /usr/bin/pcb_calculator && \
+    # Remove heavy data: demos, templates, docs, man pages
+    rm -rf /usr/share/kicad/demos \
+           /usr/share/kicad/template \
+           /usr/share/doc \
+           /usr/share/man \
+           /usr/share/icons && \
     # Cleanup build deps
-    apt-get remove -y software-properties-common && \
+    apt-get remove -y \
+        software-properties-common \
+        gpg-agent && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
@@ -42,13 +53,15 @@ WORKDIR /app
 # Install dependencies
 # Copy only lock files first for caching
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev && \
+    uv cache clean
 
 # Copy application code
 COPY . .
 
 # Install the project itself
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev && \
+    uv cache clean
 
 # Storage directory for generated previews
 RUN mkdir -p /app/var/storage

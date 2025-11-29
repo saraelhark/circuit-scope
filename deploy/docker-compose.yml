@@ -1,0 +1,39 @@
+services:
+  caddy:
+    image: caddy:alpine
+    restart: always
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    platform: linux/amd64
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/circuit-scope-frontend:latest
+    restart: always
+    env_file: .env
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+    depends_on:
+      - backend
+
+  backend:
+    platform: linux/amd64
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/circuit-scope-backend:latest
+    restart: always
+    env_file: .env
+    volumes:
+      - backend_storage:/app/var/storage
+
+volumes:
+  caddy_data:
+  caddy_config:
+  backend_storage:

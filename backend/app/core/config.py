@@ -28,9 +28,6 @@ class Settings(BaseSettings):
         default="local", description="Selected storage backend identifier"
     )
     storage_local_base_path: Path = Field(default_factory=lambda: Path("./var/storage"))
-    storage_public_base_url: HttpUrl | None = Field(
-        default=None, description="Base URL for serving stored files"
-    )
 
     frontend_secret_key: str = Field(
         title="Frontend secret key",

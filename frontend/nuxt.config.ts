@@ -10,7 +10,6 @@ export default defineNuxtConfig({
   auth: {
     isEnabled: true,
     disableServerSideAuth: false,
-    // originEnvKey: 'http://localhost:3000/api/auth',
     provider: {
       type: 'authjs'
     },
@@ -25,19 +24,19 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    authSecret: '', // will be overridden by NUXT_AUTH_SECRET
     public: {
       apiBase: "/api/v1",
     },
     private: {
-      backendUrl: process.env.NUXT_PRIVATE_BACKEND_URL,
-      frontendSecretKey: process.env.NUXT_PRIVATE_FRONTEND_SECRET_KEY,
+      backendUrl: '',
+      frontendSecretKey: '',
       // Auth.js configuration
-      authOrigin: process.env.AUTH_ORIGIN,
-      authSecret: process.env.NUXT_AUTH_SECRET,
-      googleClientId: process.env.NUXT_GOOGLE_CLIENT_ID,
-      googleClientSecret: process.env.NUXT_GOOGLE_CLIENT_SECRET,
-      githubClientId: process.env.NUXT_GITHUB_CLIENT_ID,
-      githubClientSecret: process.env.NUXT_GITHUB_CLIENT_SECRET,
+      authOrigin: '',
+      googleClientId: '',
+      googleClientSecret: '',
+      githubClientId: '',
+      githubClientSecret: '',
     },
   },
 

@@ -1,3 +1,0 @@
-circuitscope.io {
-    reverse_proxy frontend:3000
-}

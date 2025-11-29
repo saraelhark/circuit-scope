@@ -36,5 +36,8 @@ COPY --from=build /src/.output /src/.output
 # And expose the port
 EXPOSE 3000
 
+# Run as non-root user
+USER node
+
 # And run the server!
 CMD ["node", ".output/server/index.mjs"]

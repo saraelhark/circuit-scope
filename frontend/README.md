@@ -1,75 +1,60 @@
-# Nuxt Minimal Starter
+# Frontend (Nuxt 3)
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+This folder contains the Nuxt 3 / Nitro frontend. It renders the project dashboard, public review pages, SVG/3D viewers, and comment UI.
 
-## Setup
+## Recommended: run via Docker Compose
 
-Make sure to install dependencies:
+From the repository root, use Docker Compose to run both frontend and backend together (see the main `README.md`):
 
 ```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+docker compose up --build
 ```
 
-## Development Server
+The frontend will be available at `http://localhost:3000`.
 
-Start the development server on `http://localhost:3000`:
+## Local development without Docker
+
+1. **Install dependencies** (Node.js 20+ recommended):
+
+   ```bash
+   npm install
+   ```
+
+2. **Create a local environment file**:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Important variables (see comments in `.env.example`):
+
+   - `NUXT_PRIVATE_BACKEND_URL` — internal URL the frontend uses to call the FastAPI backend.
+     - In Docker, this is typically `http://backend:8000`.
+     - For a locally running backend on your host, you can use `http://localhost:8000`.
+   - `NUXT_PRIVATE_FRONTEND_SECRET_KEY` — must match `FRONTEND_SECRET_KEY` in the backend `.env`.
+   - `NUXT_AUTH_SECRET` and `AUTH_ORIGIN` — used by the auth module.
+   - OAuth client IDs/secrets for Google and GitHub login.
+
+3. **Start the dev server**:
+
+   ```bash
+   npm run dev
+   ```
+
+   The app will be available on `http://localhost:3000`.
+
+## Build and preview
+
+Build the production bundle:
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
 npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
 ```
 
-Locally preview production build:
+Preview the production build locally (Nitro server using `.output`):
 
 ```bash
-# npm
 npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+The `frontend/Dockerfile` uses this build output to run the app in production.

@@ -3,7 +3,7 @@ import GitHubProvider from 'next-auth/providers/github'
 import { NuxtAuthHandler } from '#auth'
 
 export default NuxtAuthHandler({
-    secret: useRuntimeConfig().private.authSecret as string,
+    secret: useRuntimeConfig().authSecret as string,
 
     providers: [
         (GoogleProvider as any).default({

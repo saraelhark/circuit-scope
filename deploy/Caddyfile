@@ -1,0 +1,14 @@
+{
+    email {$ACME_EMAIL}
+}
+
+circuitscope.io {
+    reverse_proxy frontend:3000
+
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

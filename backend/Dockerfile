@@ -3,7 +3,7 @@
 FROM ubuntu:24.04
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /usr/local/bin/uv
 
 ENV DEBIAN_FRONTEND=noninteractive \
     # Python/uv settings
@@ -48,6 +48,8 @@ RUN apt-get update && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --system app && useradd --system --gid app --create-home app
+
 WORKDIR /app
 
 # Install dependencies
@@ -64,8 +66,10 @@ RUN uv sync --frozen --no-dev && \
     uv cache clean
 
 # Storage directory for generated previews
-RUN mkdir -p /app/var/storage
+RUN mkdir -p /app/var/storage && chown -R app:app /app/var/storage
 
 EXPOSE 8000
+
+USER app
 
 CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

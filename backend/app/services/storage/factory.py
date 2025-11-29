@@ -20,11 +20,6 @@ def create_storage_service(settings: Settings) -> StorageService:
     if backend == "local":
         return LocalStorage(
             base_path=settings.storage_local_base_path,
-            public_base_url=(
-                str(settings.storage_public_base_url)
-                if settings.storage_public_base_url
-                else None
-            ),
         )
 
     raise ValueError(f"Unsupported storage backend: {settings.storage_backend}")

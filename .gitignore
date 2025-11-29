@@ -1,4 +1,4 @@
 mynotes/
 .DS_Store
-.env
+*.env*
 .env.prod

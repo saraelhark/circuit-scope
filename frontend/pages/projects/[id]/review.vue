@@ -361,8 +361,16 @@ function zoomIn() { viewer.value?.adjustZoom(1) }
 function zoomOut() { viewer.value?.adjustZoom(-1) }
 function resetZoom() { viewer.value?.resetView() }
 function flipModel() { viewer.value?.flipModel() }
+const isMobile = ref(false)
 
 onMounted(() => {
+    if (typeof window !== "undefined") {
+        isMobile.value = window.innerWidth < 768
+    }
+    if (isMobile.value) {
+        sidebarOpen.value = false
+    }
+
     watch(currentViewId, (viewId) => {
         if (viewer.value && viewId) {
             viewer.value.setActiveView(viewId)
@@ -372,11 +380,15 @@ onMounted(() => {
 </script>
 
 <template>
-    <header class="border-b border-border bg-card/80 backdrop-blur">
-        <div class="container flex h-16 items-center justify-between">
-            <NuxtLink to="/" class="flex items-center gap-2 font-semibold">
-                <span class="text-lg">Circuit Scope</span>
-            </NuxtLink>
+    <header class="sticky top-0 z-50 w-full bg-cs-lighter-green text-cs-charcoal font-primary">
+        <div class="container px-8 sm:px-16 flex h-14 items-center justify-between">
+            <div class="flex items-center gap-4">
+                <NuxtLink to="/"
+                    class="flex items-center gap-2 text-xl font-bold text-cs-charcoal hover:opacity-80 transition-opacity">
+                    <img class="h-8 w-8 rounded-lg" src="/logo.svg" alt="Circuit Scope logo" />
+                    <span class="ml-4 text-cs-dark-green hidden sm:block">Circuit Scope</span>
+                </NuxtLink>
+            </div>
 
 
             <div class="flex items-center gap-2">
@@ -384,9 +396,9 @@ onMounted(() => {
             </div>
         </div>
     </header>
-    <div class="flex h-screen w-full overflow-hidden">
+    <div class="flex h-screen supports-[height:100dvh]:h-[100dvh] w-full overflow-hidden relative">
 
-        <div class="relative flex-1 bg-neutral-50 dark:bg-neutral-900">
+        <div class="relative flex-1 bg-neutral-50 dark:bg-neutral-900 w-full h-full">
             <ReviewCanvasToolbar :views="viewerViews" :current-view-id="currentViewId" :selected-tool="selectedTool"
                 @select-view="setActiveView" @select-tool="selectTool" @zoom-in="zoomIn" @zoom-out="zoomOut"
                 @reset-zoom="resetZoom" @flip-view="flipModel" />
@@ -400,13 +412,35 @@ onMounted(() => {
             </ReviewCanvas>
 
             <button v-if="!sidebarOpen" @click="toggleSidebar"
-                class="absolute right-0 top-1/2 z-30 -translate-y-1/2 rounded-l-md border bg-card px-1 py-2 text-xs">&lt;</button>
+                class="absolute right-0 top-1/2 z-30 -translate-y-1/2 rounded-l-md border bg-card px-1 py-2 text-xs hidden lg:block shadow-md">
+                &lt;
+            </button>
+
+            <button v-if="!sidebarOpen" @click="toggleSidebar"
+                class="absolute right-4 bottom-4 z-30 rounded-full h-12 w-12 flex items-center justify-center border bg-primary text-primary-foreground shadow-lg lg:hidden">
+                <i class="fas fa-comment-alt text-xl"></i>
+            </button>
         </div>
 
-        <aside v-if="sidebarOpen" class="relative w-96 shrink-0 border-l bg-card">
+        <div v-if="sidebarOpen && isMobile" class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            @click="sidebarOpen = false"></div>
+
+        <aside v-if="sidebarOpen"
+            class="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-card border-l shadow-xl transition-transform duration-200 lg:relative lg:translate-x-0 lg:shadow-none lg:z-auto shrink-0 flex flex-col">
+
             <button @click="toggleSidebar"
-                class="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-md border bg-card p-2 text-xs">&gt;</button>
-            <div class="flex h-full flex-col overflow-hidden p-4">
+                class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full rounded-l-md border bg-card p-2 text-xs hidden lg:block shadow-md">
+                &gt;
+            </button>
+
+            <div class="flex items-center justify-between p-4 border-b lg:hidden">
+                <h3 class="font-semibold">Comments</h3>
+                <button @click="toggleSidebar" class="p-2 hover:bg-accent rounded-md">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-hidden p-4">
                 <ReviewCommentsSidebar :threads="threads" :active-thread-id="activeThreadId"
                     :thread-status="threadStatusComputed" :pending-pin-present="!!pendingPin" :form-error="formError"
                     :reply-error="replyError" :new-thread-content="newThreadForm.content"

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { Bell, User, LogOut, Folder, Github, Check } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { onClickOutside } from '@vueuse/core'
 
@@ -16,6 +15,8 @@ const isNotificationsOpen = ref(false)
 const notificationsRef = ref(null)
 const unreadCount = ref(0)
 const notifications = ref<any[]>([])
+
+const route = useRoute()
 
 function toggleUserMenu() {
     isUserMenuOpen.value = !isUserMenuOpen.value
@@ -90,7 +91,7 @@ async function markAsRead(notification: any) {
 
     if (notification.project_id) {
         isNotificationsOpen.value = false
-        // For thread/comment notifications, go to the review page
+
         if (notification.thread_id) {
             await navigateTo(`/projects/${notification.project_id}/review?thread=${notification.thread_id}`)
         } else {
@@ -130,47 +131,46 @@ watch(() => backendUser.value?.id, (newId) => {
 </script>
 
 <template>
-    <header
-        class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div class="container flex h-14 items-center justify-between">
+    <header class="sticky top-0 z-50 w-full bg-cs-lighter-green text-cs-charcoal font-primary">
+        <div class="container px-8 sm:px-16 flex h-14 items-center justify-between">
             <div class="flex items-center gap-4">
-                <NuxtLink to="/" class="flex items-center gap-2 text-xl font-bold text-foreground">
-                    <div class="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="h-5 w-5 text-primary">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                        </svg>
-                    </div>
-                    Circuit Scope
+                <NuxtLink to="/"
+                    class="flex items-center gap-2 text-xl font-bold text-cs-charcoal hover:opacity-80 transition-opacity">
+                    <img class="h-8 w-8 rounded-lg" src="/logo.svg" alt="Circuit Scope logo" />
+                    <span class="ml-4 text-cs-dark-green hidden sm:block">Circuit Scope</span>
                 </NuxtLink>
             </div>
 
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-1 sm:gap-4">
                 <Button as="a" href="https://github.com/saraelhark/circuit-scope" target="_blank" rel="noreferrer"
-                    variant="ghost" size="icon" class="text-muted-foreground hover:text-foreground">
-                    <Github class="h-5 w-5" />
+                    variant="ghost" size="icon"
+                    class="text-cs-charcoal hover:bg-cs-light-green/20 hidden sm:inline-flex">
+                    <i class="fab fa-github text-xl text-cs-dark-green"></i>
                     <span class="sr-only">Open Circuit Scope on GitHub</span>
                 </Button>
 
                 <template v-if="isSignedIn">
-                    <NuxtLink to="/projects/new">
-                        <Button size="sm">Upload Project</Button>
+                    <NuxtLink to="/projects/new" v-if="route.path !== '/' && route.path !== '/projects/new'">
+                        <button class="btn-regular text-sm py-1 px-3 h-9 flex items-center gap-2">
+                            <span class="hidden sm:inline">Upload Project</span>
+                            <i class="fas fa-plus sm:hidden"></i>
+                        </button>
                     </NuxtLink>
 
                     <div class="relative" ref="notificationsRef">
-                        <Button variant="ghost" size="icon" class="relative" @click="toggleNotifications">
-                            <Bell class="h-5 w-5" />
+                        <Button variant="ghost" size="icon" class="relative text-cs-charcoal hover:bg-cs-light-green/20"
+                            @click="toggleNotifications">
+                            <i class="fas fa-bell text-xl text-cs-dark-green"></i>
                             <span v-if="unreadCount > 0"
-                                class="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500"></span>
+                                class="absolute top-2 right-2 h-2 w-2 rounded-full bg-cs-red"></span>
                         </Button>
 
                         <div v-if="isNotificationsOpen"
-                            class="absolute right-0 mt-2 w-80 origin-top-right rounded-md border bg-popover shadow-md focus:outline-none animate-in fade-in zoom-in-95 duration-200 max-h-[80vh] overflow-y-auto z-50">
+                            class="absolute right-0 mt-2 w-80 origin-top-right rounded-lg border bg-white shadow-lg focus:outline-none animate-in fade-in zoom-in-95 duration-200 max-h-[80vh] overflow-y-auto z-50 text-foreground font-secondary">
                             <div class="flex items-center justify-between px-4 py-3 border-b">
                                 <h3 class="font-semibold text-sm">Notifications</h3>
                                 <button v-if="unreadCount > 0" @click="markAllRead"
-                                    class="text-xs text-primary hover:underline">
+                                    class="text-xs text-cs-blue hover:underline">
                                     Mark all read
                                 </button>
                             </div>
@@ -184,7 +184,7 @@ watch(() => backendUser.value?.id, (newId) => {
                                 <div v-for="notification in notifications" :key="notification.id"
                                     @click="markAsRead(notification)"
                                     class="p-3 hover:bg-accent cursor-pointer transition-colors text-sm"
-                                    :class="{ 'bg-primary/5': !notification.is_read }">
+                                    :class="{ 'bg-cs-light-green/10': !notification.is_read }">
                                     <div class="flex gap-3">
                                         <div class="flex-1 space-y-1">
                                             <p class="leading-none" :class="{ 'font-medium': !notification.is_read }">
@@ -195,51 +195,47 @@ watch(() => backendUser.value?.id, (newId) => {
                                             </p>
                                         </div>
                                         <div v-if="!notification.is_read"
-                                            class="h-2 w-2 mt-1 rounded-full bg-primary shrink-0"></div>
+                                            class="h-2 w-2 mt-1 rounded-full bg-cs-light-green shrink-0"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="relative ml-2" ref="userMenuRef">
+                    <div class="relative" ref="userMenuRef">
                         <button @click="toggleUserMenu" class="flex items-center gap-2 outline-none">
                             <div
-                                class="h-8 w-8 rounded-full bg-secondary flex items-center justify-center overflow-hidden border text-muted-foreground">
+                                class="h-8 w-8 rounded-full bg-white flex items-center justify-center overflow-hidden text-cs-charcoal">
                                 <img v-if="user?.image" :src="user.image" :alt="user.name || 'User'"
                                     class="h-full w-full object-cover" />
-                                <User v-else class="h-4 w-4" />
+                                <i v-else class="fas fa-user h-4 w-4"></i>
                             </div>
                         </button>
 
                         <div v-if="isUserMenuOpen"
-                            class="absolute right-0 mt-2 w-56 origin-top-right rounded-md border bg-popover p-1 shadow-md focus:outline-none animate-in fade-in zoom-in-95 duration-200 z-50">
-                            <div class="px-2 py-1.5 text-sm font-semibold">
-                                {{ user?.name || user?.email }}
-                            </div>
-                            <div class="h-px my-1 bg-muted"></div>
+                            class="absolute right-0 mt-2 w-56 origin-top-right rounded-lg border bg-cs-lighter-green p-1 shadow-lg focus:outline-none animate-in fade-in zoom-in-95 duration-200 z-50 text-foreground font-secondary">
                             <NuxtLink to="/dashboard"
-                                class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                class="relative flex cursor-default select-none items-center rounded-sm p-2 text-sm outline-none hover:bg-cs-charcoal/10"
                                 @click="isUserMenuOpen = false">
-                                <Folder class="mr-2 h-4 w-4" />
+                                <i class="fas fa-folder mr-2 h-4 w-4"></i>
                                 <span>My Projects</span>
                             </NuxtLink>
                             <div class="h-px my-1 bg-muted"></div>
-                            <button @click="handleSignOut"
-                                class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-red-500">
-                                <LogOut class="mr-2 h-4 w-4" />
+                            <Button variant="ghost" @click="handleSignOut"
+                                class="relative flex w-full cursor-default select-none items-center rounded-sm p-2 text-sm outline-none hover:bg-cs-charcoal/10 h-auto justify-start">
+                                <i class="fas fa-right-from-bracket mr-2"></i>
                                 <span>Sign out</span>
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </template>
 
                 <template v-else>
                     <NuxtLink to="/login">
-                        <Button size="sm">Log in</Button>
+                        <Button variant="special" class="text-sm h-9 pl-12">Login</Button>
                     </NuxtLink>
                 </template>
             </div>
         </div>
     </header>
-</template>>
+</template>

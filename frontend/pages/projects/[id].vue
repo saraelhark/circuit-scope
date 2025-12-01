@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import { Share2 } from "lucide-vue-next"
 
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
@@ -30,7 +29,6 @@ const { data, error, refresh, status } = useAsyncData<Project>(
 
 const project = computed(() => data.value)
 
-// Poll project status if processing
 let pollInterval: NodeJS.Timeout | null = null
 
 watch(project, (newVal) => {
@@ -44,7 +42,6 @@ watch(project, (newVal) => {
     if (pollInterval) {
       clearInterval(pollInterval)
       pollInterval = null
-      // If just finished processing, refresh previews too
       refreshPreviews()
     }
   }
@@ -68,17 +65,16 @@ const { data: previewData, status: previewStatus, refresh: refreshPreviews } = u
   () => getProjectPreviews(projectId.value),
   {
     watch: [projectId],
-    immediate: false, // Wait until we know processing is done or check manually
+    immediate: false,
   },
 )
 
-// Trigger preview load when mounted if ready
 onMounted(() => {
   if (project.value?.processing_status === 'completed') {
     refreshPreviews()
   }
 })
-// Also watch for project changes to trigger preview load if completed
+
 watch(project, (p) => {
   if (p?.processing_status === 'completed' && !previewData.value) {
     refreshPreviews()
@@ -120,7 +116,8 @@ async function shareProject() {
 
 <template>
   <NuxtPage v-if="$route.name === 'projects-id-review'" />
-  <div v-else class="container py-4 max-w-5xl mx-auto">
+  <div v-else
+    class="min-h-[calc(100vh-3.5rem)] container px-4 sm:px-8 py-8 max-w-6xl mx-auto bg-cs-light-green border-x-4 border-y-0 border-white">
     <div v-if="error">
       <div class="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
         <h3 class="font-semibold">Failed to load project</h3>
@@ -141,9 +138,8 @@ async function shareProject() {
         Project not found.
       </div>
 
-      <div v-else class="flex flex-col gap-10">
+      <div v-else class="flex flex-col gap-4 sm:gap-6">
 
-        <!-- Processing Status Alerts -->
         <div v-if="project.processing_status === 'queued' || project.processing_status === 'processing'"
           class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
           <div class="flex items-center gap-3">
@@ -165,29 +161,38 @@ async function shareProject() {
 
         <div class="flex flex-col gap-4 border-b pb-4">
           <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div class="space-y-4 flex-1">
-              <h1 class="text-3xl font-bold tracking-tight lg:text-3xl">{{ project.name }}</h1>
-              <div class="flex items-center gap-3">
+            <div class="space-y-2 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <h1 class="text-2xl font-bold tracking-tight lg:text-3xl truncate">{{ project.name }}</h1>
+              </div>
+              <div class="flex items-center justify-between md:justify-start gap-3">
                 <Badge :variant="projectStatusVariant" class="text-sm px-2 py-0.5">
                   {{ projectStatusLabel }}
                 </Badge>
+
+                <div class="flex items-center gap-2 md:hidden">
+                  <Button variant="regular" size="icon" class="h-9 w-9" @click="shareProject">
+                    <i class="fas fa-share-alt h-4 w-4"></i>
+                  </Button>
+                  <Button size="sm" variant="regular" class="h-9 px-4" @click="goToReview">
+                    Review
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <div class="flex flex-col gap-3 sm:flex-row shrink-0">
-              <Button size="lg" class="text-base px-8 shadow-sm" @click="goToReview">
-                Start Review
+            <div class="hidden md:flex flex-col gap-3 sm:flex-row shrink-0">
+              <Button variant="regular" @click="shareProject">
+                <i class="fas fa-share-alt h-4 w-4"></i>
               </Button>
-              <Button variant="outline" size="lg" class="text-base px-8 shadow-sm" @click="shareProject">
-                <Share2 class="mr-2 h-4 w-4" />
-                Share
+              <Button variant="cta" @click="goToReview">
+                Go to Review
               </Button>
             </div>
           </div>
 
-          <div class="prose prose-lg text-muted-foreground max-w-none">
-            <p v-if="project.description">{{ project.description }}</p>
-            <p v-else class="italic opacity-50">No description provided.</p>
+          <div class="prose prose-sm text-muted-foreground max-w-none" v-if="project.description">
+            <p>{{ project.description }}</p>
           </div>
         </div>
 
@@ -198,11 +203,9 @@ async function shareProject() {
             class="flex h-64 items-center justify-center text-muted-foreground bg-muted/10">
             Generating previews…
           </div>
-          <div v-else class="bg-card overflow-hidden">
-            <div class="p-1">
-              <ProjectAssetViewer :views="viewerViews" :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'"
-                :show-controls="true" />
-            </div>
+          <div v-else class="overflow-hidden">
+            <ProjectAssetViewer :views="viewerViews" :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'"
+              :show-controls="true" />
           </div>
         </div>
       </div>

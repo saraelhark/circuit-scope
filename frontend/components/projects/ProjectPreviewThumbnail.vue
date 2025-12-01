@@ -49,7 +49,7 @@ const isLoading = computed(() => status.value === "pending" || status.value === 
 </script>
 
 <template>
-  <div class="relative aspect-square w-full overflow-hidden rounded-md border bg-[#001124]">
+  <div class="relative aspect-square w-full overflow-hidden rounded-md bg-cs-black">
     <div v-if="isLoading" class="h-full w-full animate-pulse bg-white/10" />
 
     <img v-else-if="previewUrl" :src="previewUrl" :alt="previewAlt" class="h-full w-full object-contain" loading="lazy">

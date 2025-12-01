@@ -52,7 +52,7 @@ function threadLabel(threadId: string): number | string {
 <template>
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">New comment</h3>
+            <h3 class="text-lg font-semibold">Comments</h3>
             <Button v-if="pendingPinPresent" size="sm" variant="ghost" class="text-muted-foreground"
                 @click="$emit('cancel-pending-pin')">
                 Cancel
@@ -73,7 +73,7 @@ function threadLabel(threadId: string): number | string {
                 </label>
             </div>
             <div class="flex justify-end gap-2">
-                <Button type="submit" size="sm">Create thread</Button>
+                <Button type="submit" size="sm" variant="regular">Create thread</Button>
             </div>
         </form>
     </div>
@@ -104,7 +104,7 @@ function threadLabel(threadId: string): number | string {
                         </p>
                     </div>
                     <Badge v-if="thread.is_resolved" variant="secondary">Resolved</Badge>
-                </button>
+                </Button>
                 <div v-if="thread.id === activeThreadId" class="mt-3 space-y-3 border-t pt-3">
                     <div v-for="comment in thread.comments" :key="comment.id" class="space-y-1">
                         <p class="text-xs font-semibold">
@@ -132,7 +132,7 @@ function threadLabel(threadId: string): number | string {
                             </label>
                         </div>
                         <div class="flex justify-end">
-                            <Button size="sm" type="submit">Post reply</Button>
+                            <Button size="sm" type="submit" variant="regular">Post reply</Button>
                         </div>
                     </form>
                 </div>

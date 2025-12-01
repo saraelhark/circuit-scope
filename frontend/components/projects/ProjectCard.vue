@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { MessageSquare, Eye } from 'lucide-vue-next'
 import { useTimeAgo } from '@vueuse/core'
 import type { Project } from "~/types/api/projects"
 import ProjectPreviewThumbnail from "~/components/projects/ProjectPreviewThumbnail.vue"
+import ProjectStats from "~/components/projects/ProjectStats.vue"
 
 const props = defineProps<{
     project: Project
@@ -24,38 +24,30 @@ function formattedDescription(description: string | null) {
 
 <template>
     <NuxtLink :to="`/projects/${project.id}`"
-        class="group flex flex-col gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 sm:flex-row bg-card text-card-foreground shadow-sm">
-        <!-- Thumbnail -->
+        class="group flex flex-col gap-4 rounded-[8px] border-4 border-white bg-cs-light-green p-4 transition-all hover:brightness-105 sm:flex-row text-white shadow-sm">
         <div class="shrink-0 sm:w-32 md:w-40">
-            <div class="aspect-square w-full overflow-hidden rounded-md border bg-muted">
+            <div
+                class="aspect-square w-full overflow-hidden rounded-md bg-cs-charcoal flex items-center justify-center">
                 <ProjectPreviewThumbnail :project-id="project.id" />
             </div>
         </div>
 
-        <!-- Content -->
         <div class="flex min-w-0 flex-1 flex-col gap-2">
             <div class="flex items-start justify-between gap-2">
                 <div>
                     <h3
-                        class="text-lg font-semibold leading-tight tracking-tight text-foreground group-hover:text-primary">
+                        class="text-lg font-bold leading-tight tracking-tight text-white font-primary group-hover:underline">
                         {{ project.name }}
                     </h3>
-                    <p class="mt-1 text-sm text-muted-foreground line-clamp-2">
+                    <p class="mt-1 text-sm text-white/80 line-clamp-2 font-secondary">
                         {{ formattedDescription(project.description) }}
                     </p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-4 text-xs text-muted-foreground mt-auto">
-                <div class="flex items-center gap-1" title="Comments">
-                    <MessageSquare class="h-3.5 w-3.5" />
-                    <span>{{ project.total_comment_count }}</span>
-                </div>
-                <div class="flex items-center gap-1" title="Views">
-                    <Eye class="h-3.5 w-3.5" />
-                    <span>{{ project.view_count }}</span>
-                </div>
-                <span>{{ timeAgo }}</span>
+            <div class="mt-auto">
+                <ProjectStats :comment-count="project.total_comment_count" :view-count="project.view_count"
+                    :time-ago="timeAgo" />
             </div>
         </div>
     </NuxtLink>

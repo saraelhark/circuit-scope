@@ -5,23 +5,32 @@ import ProjectCard from "~/components/projects/ProjectCard.vue"
 import { Button } from "~/components/ui/button"
 import { Card, CardTitle, CardDescription, CardHeader, CardFooter } from "~/components/ui/card"
 import { useProject } from "~/composables/useProjects"
+import { usePagination } from "~/composables/usePagination"
 import type { ListProjectsQuery, ProjectListResponse } from "~/types/api/projects"
 
 defineOptions({
   name: "ProjectsList",
 })
-const pagination = reactive({
-  page: 1,
-  size: 10,
-})
-
-const queryParams = computed<ListProjectsQuery>(() => ({
-  page: pagination.page,
-  size: pagination.size,
-  status: "open",
-}))
 
 const { listProjects } = useProject()
+
+const totalItems = ref(0)
+
+const {
+  currentPage,
+  pageSize,
+  totalPages,
+  canPrevious,
+  canNext,
+  goToPrevious,
+  goToNext
+} = usePagination(totalItems, { pageSize: 10, initialPage: 1 })
+
+const queryParams = computed<ListProjectsQuery>(() => ({
+  page: currentPage.value,
+  size: pageSize.value,
+  status: "open",
+}))
 
 const { data, error, refresh, status } = useAsyncData<ProjectListResponse>(
   "projects-list",
@@ -31,46 +40,23 @@ const { data, error, refresh, status } = useAsyncData<ProjectListResponse>(
   },
 )
 
-const projects = computed(() => data.value?.items ?? [])
-const total = computed(() => data.value?.total ?? 0)
-const totalPages = computed(() => {
-  if (!data.value || data.value.size <= 0) {
-    return 1
+watch(data, (newData) => {
+  if (newData) {
+    totalItems.value = newData.total
   }
-  return Math.max(1, Math.ceil(data.value.total / data.value.size))
 })
 
-const canPrevious = computed(() => pagination.page > 1)
-const canNext = computed(() => pagination.page < totalPages.value)
-
-function goToPrevious() {
-  if (canPrevious.value) {
-    pagination.page -= 1
-  }
-}
-
-function goToNext() {
-  if (canNext.value) {
-    pagination.page += 1
-  }
-}
+const projects = computed(() => data.value?.items ?? [])
 </script>
 
 <template>
   <div class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight">Latest Projects</h1>
-        <p class="text-muted-foreground">Discover and review the latest hardware schematics/layouts designs.</p>
-      </div>
-    </div>
-
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div class="lg:col-span-2 space-y-6">
-        <Card v-if="error">
+        <Card v-if="error" class="bg-cs-light-green text-white border-white">
           <CardHeader>
             <CardTitle>Failed to load projects</CardTitle>
-            <CardDescription>{{ error?.message ?? "Please try again later." }}</CardDescription>
+            <CardDescription class="text-white/80">{{ error?.message ?? "Please try again later." }}</CardDescription>
           </CardHeader>
           <CardFooter>
             <Button variant="secondary" @click="refresh">
@@ -80,13 +66,13 @@ function goToNext() {
         </Card>
 
         <div v-else>
-          <div v-if="status === 'pending'" class="flex h-32 items-center justify-center text-muted-foreground">
+          <div v-if="status === 'pending'" class="flex h-32 items-center justify-center text-white font-primary">
             Loading projects…
           </div>
 
           <div v-else>
             <div v-if="projects.length === 0"
-              class="flex h-32 flex-col items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 p-6 text-center text-sm text-muted-foreground">
+              class="flex h-32 flex-col items-center justify-center rounded-lg border border-dashed border-white/30 p-6 text-center text-sm text-white/60 font-primary">
               <p>No projects yet.</p>
               <p>Be the first to upload your design!</p>
             </div>
@@ -98,15 +84,17 @@ function goToNext() {
         </div>
 
         <div v-if="projects.length > 0"
-          class="flex flex-col items-center justify-between gap-4 pt-4 text-sm text-muted-foreground md:flex-row">
+          class="flex flex-col items-center justify-between gap-4 pt-4 text-sm text-white/80 md:flex-row font-secondary">
           <div>
-            Showing page {{ pagination.page }} of {{ totalPages }}
+            Showing page {{ currentPage }} of {{ totalPages }}
           </div>
           <div class="flex items-center gap-2">
-            <Button variant="outline" size="sm" :disabled="!canPrevious" @click="goToPrevious">
+            <Button variant="outline" size="sm" :disabled="!canPrevious" @click="goToPrevious"
+              class="border-white text-white hover:bg-white/10 bg-transparent">
               Previous
             </Button>
-            <Button variant="outline" size="sm" :disabled="!canNext" @click="goToNext">
+            <Button variant="outline" size="sm" :disabled="!canNext" @click="goToNext"
+              class="border-white text-white hover:bg-white/10 bg-transparent">
               Next
             </Button>
           </div>
@@ -114,18 +102,16 @@ function goToNext() {
       </div>
 
       <div class="space-y-6">
-        <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
-          <div class="p-6 space-y-4">
-            <h3 class="font-semibold leading-none tracking-tight">Submit your project</h3>
-            <p class="text-sm text-muted-foreground">
+        <div class="rounded-lg border-4 border-white bg-cs-light-green text-white shadow-sm">
+          <div class="p-8 space-y-6 flex flex-col items-center text-center justify-center">
+            <h3 class="text-md text-white/90 font-secondary">
               Get feedback on your schematic and PCB layout from the community.
-            </p>
-            <Button class="w-full" asChild>
-              <NuxtLink to="/projects/new">Upload Project</NuxtLink>
-            </Button>
+            </h3>
+            <NuxtLink to="/projects/new" class="w-full">
+              <Button variant="cta" class="w-full">Upload Project</Button>
+            </NuxtLink>
           </div>
         </div>
-
       </div>
     </div>
   </div>

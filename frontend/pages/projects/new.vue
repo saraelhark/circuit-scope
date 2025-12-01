@@ -5,10 +5,7 @@ import { Button } from "~/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
-  CardHeader,
-  CardTitle,
 } from "~/components/ui/card"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
@@ -91,62 +88,50 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-5xl flex-col gap-6">
-    <div class="flex flex-wrap items-center justify-between gap-4 text-center sm:text-left">
-      <div class="mx-auto sm:mx-0">
-        <h1 class="text-3xl font-semibold tracking-tight">Create a new project</h1>
-        <p class="text-muted-foreground">
-          Share your KiCad PCB project for review.
-        </p>
-      </div>
-    </div>
+  <div class="min-h-screen flex justify-center items-start pt-16">
+    <form class="w-full max-w-2xl" @submit.prevent="handleSubmit">
+      <Card class="w-full py-12 px-16">
+        <div class="text-center mb-8">
+          <h1 class="text-2xl font-bold text-white font-primary sm:text-2xl md:text-3xl">Upload a design for review</h1>
+        </div>
+        <div class="space-y-6">
+          <div class="space-y-2">
+            <Label for="name" class="text-white">Project name</Label>
+            <Input id="name" v-model="form.name" placeholder="ESP32 IoT weather station" required
+              class="bg-white text-cs-charcoal border-cs-whiteish" />
+          </div>
 
-    <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <form class="w-full" @submit.prevent="handleSubmit">
-        <Card>
-          <CardHeader>
-            <CardTitle>Project details</CardTitle>
-            <CardDescription>
-              Provide metadata and optionally attach a KiCad ZIP archive.
-            </CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-6">
-            <div class="space-y-2">
-              <Label for="name">Project name</Label>
-              <Input id="name" v-model="form.name" placeholder="My KiCad design" required />
-            </div>
+          <div class="space-y-2">
+            <Label for="description" class="text-white">Description</Label>
+            <Textarea id="description" v-model="form.description"
+              placeholder="Describe the project to give better context for the design review"
+              class="bg-white text-cs-charcoal border-cs-whiteish" />
+          </div>
 
-            <div class="space-y-2">
-              <Label for="description">Description</Label>
-              <Textarea id="description" v-model="form.description"
-                placeholder="Describe the purpose, scope, and key components of this design." />
-            </div>
+          <div class="space-y-2">
+            <Label for="file" class="text-white">Project archive</Label>
+            <Input id="file" type="file" accept=".zip" @change="onFileChange"
+              class="bg-white text-cs-charcoal border-cs-whiteish file:text-cs-charcoal cursor-pointer" />
+            <p class="text-sm text-cs-whiteish/80">
+              Upload a KiCad project archive (max {{ MAX_ARCHIVE_SIZE_MB }} MB).
+              Only <code>.zip</code> files are supported.
+            </p>
+            <p v-if="file" class="text-xs text-cs-whiteish/80">
+              Selected file: {{ file?.name }}
+            </p>
+          </div>
 
-            <div class="space-y-2">
-              <Label for="file">Project archive</Label>
-              <Input id="file" type="file" accept=".zip" @change="onFileChange" />
-              <p class="text-sm text-muted-foreground">
-                Upload a KiCad ZIP archive (max {{ MAX_ARCHIVE_SIZE_MB }} MB).
-                Only <code>.zip</code> files are supported.
-              </p>
-              <p v-if="file" class="text-xs text-muted-foreground">
-                Selected file: {{ file?.name }}
-              </p>
-            </div>
-
-            <div v-if="submissionError"
-              class="rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-              {{ submissionError }}
-            </div>
-          </CardContent>
-          <CardFooter class="flex items-center justify-end gap-2">
-            <Button type="submit" :disabled="submitting">
-              <span v-if="submitting">Creating…</span>
-              <span v-else>Submit project</span>
-            </Button>
-          </CardFooter>
-        </Card>
-      </form>
-    </div>
+          <div v-if="submissionError" class="rounded-md border border-cs-red bg-cs-red/20 p-3 text-sm text-white">
+            {{ submissionError }}
+          </div>
+        </div>
+        <div class="mt-8 flex items-center justify-end gap-2">
+          <Button variant="cta" type="submit" :disabled="submitting">
+            <span v-if="submitting">Creating…</span>
+            <span v-else>Submit</span>
+          </Button>
+        </div>
+      </Card>
+    </form>
   </div>
 </template>

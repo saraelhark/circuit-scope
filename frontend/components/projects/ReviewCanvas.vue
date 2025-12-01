@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { Checkbox } from "~/components/ui/checkbox"
 import { Label } from "~/components/ui/label"
+import { useCanvasInteraction } from "~/composables/useCanvasInteraction"
 
 import ProjectModelViewer from "~/components/projects/ProjectModelViewer.vue"
 import type { ViewerView } from "~/types/viewer"
@@ -44,17 +45,6 @@ const emit = defineEmits<{
   ]
 }>()
 
-const zoom = ref(1)
-const minZoom = 0.25
-const maxZoom = 6
-const zoomStep = 0.2
-const translate = ref({ x: 0, y: 0 })
-
-const panOrigin = ref({ x: 0, y: 0 })
-const pointerStart = ref({ x: 0, y: 0 })
-const isPanning = ref(false)
-const activePointerId = ref<number | null>(null)
-
 const contentRef = ref<HTMLDivElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const modelViewerRef = ref<InstanceType<typeof ProjectModelViewer> | null>(null)
@@ -67,7 +57,6 @@ const activeView = computed(() => props.views.find((v) => v.id === activeViewId.
 const composedAsset = computed(() => activeView.value?.asset ?? null)
 const activeAsset = computed(() => composedAsset.value ?? activeView.value?.asset)
 
-// Multi-layer support
 const availableLayers = computed(() => activeView.value?.layers ?? [])
 const isMultiLayer = computed(() => availableLayers.value.length > 0)
 const visibleLayerIds = ref<Set<string>>(new Set())
@@ -76,6 +65,21 @@ const is3DView = computed(() => activeView.value?.kind === "3d")
 const isLayoutView = computed(() => !is3DView.value && (activeView.value?.id?.startsWith("pcb") || isMultiLayer.value))
 const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
 const annotationColor = "#7CFF00"
+
+const disablePan = computed(() => props.activeTool !== "pan" || is3DView.value)
+
+const {
+  zoom,
+  translate,
+  isPanning,
+  adjustZoom,
+  setZoom,
+  resetTranslate,
+  handleWheel,
+  handlePointerDown,
+  handlePointerMove,
+  stopPanning
+} = useCanvasInteraction(contentRef, { disableInteraction: disablePan })
 
 const firstVisibleLayerId = computed(() => {
   if (!isMultiLayer.value) return null
@@ -140,16 +144,13 @@ watch(
   { immediate: true }
 )
 
-function adjustZoom(direction: 1 | -1) {
-  const next = Number((zoom.value + direction * zoomStep).toFixed(2))
-  zoom.value = Math.min(maxZoom, Math.max(minZoom, next))
-  updateAssetBounds()
-}
 function resetView() {
-  translate.value = { x: 0, y: 0 }
-  zoom.value = computeInitialZoom()
+  resetTranslate()
+  const initialZoom = computeInitialZoom()
+  setZoom(initialZoom)
   nextTick(() => updateAssetBounds())
 }
+
 function computeInitialZoom() {
   if (!contentRef.value || !imageRef.value) return 1
   const viewport = contentRef.value.getBoundingClientRect()
@@ -157,36 +158,9 @@ function computeInitialZoom() {
   const natH = imageRef.value.naturalHeight || imageRef.value.height
   if (!natW || !natH) return 1
   const scale = Math.min((viewport.width * 0.9) / natW, (viewport.height * 0.9) / natH)
-  const clamped = Math.min(maxZoom, Math.max(minZoom, scale))
+  // Using 6 as maxZoom and 0.25 as minZoom from composable defaults
+  const clamped = Math.min(6, Math.max(0.25, scale))
   return Number(clamped.toFixed(2))
-}
-
-
-function handlePointerDown(event: PointerEvent) {
-  if (props.activeTool !== "pan" || is3DView.value) return
-  if (event.pointerType === "touch") event.preventDefault()
-  if (!contentRef.value || isPanning.value) return
-  isPanning.value = true
-  activePointerId.value = event.pointerId
-  pointerStart.value = { x: event.clientX, y: event.clientY }
-  panOrigin.value = { ...translate.value }
-  contentRef.value.setPointerCapture(event.pointerId)
-}
-
-function handlePointerMove(event: PointerEvent) {
-  if (props.activeTool !== "pan" || is3DView.value) return
-  if (!isPanning.value || activePointerId.value !== event.pointerId) return
-  event.preventDefault()
-  const dx = event.clientX - pointerStart.value.x
-  const dy = event.clientY - pointerStart.value.y
-  translate.value = { x: panOrigin.value.x + dx, y: panOrigin.value.y + dy }
-}
-
-function stopPanning(event: PointerEvent) {
-  if (!isPanning.value || activePointerId.value !== event.pointerId) return
-  isPanning.value = false
-  activePointerId.value = null
-  contentRef.value?.releasePointerCapture(event.pointerId)
 }
 
 function handlePointerUp(event: PointerEvent) {
@@ -197,12 +171,6 @@ function handlePointerUp(event: PointerEvent) {
   }
 }
 
-function handleWheel(e: WheelEvent) {
-  if (props.activeTool !== "pan" || is3DView.value) return
-  e.preventDefault()
-  const delta = Math.sign(e.deltaY)
-  adjustZoom(delta > 0 ? -1 : 1)
-}
 
 type DraftShape = { tool: "circle"; startX: number; startY: number; currentX: number; currentY: number }
 type FinalShape = { id: string; startX: number; startY: number; endX: number; endY: number }
@@ -383,7 +351,7 @@ defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrienta
       <ProjectModelViewer ref="modelViewerRef" :model-url="activeAsset?.url || undefined" :interaction-enabled="false"
         @bounds-change="handleModelBounds" />
       <div v-if="!activeAsset?.url"
-        class="absolute inset-0 flex h-full w-full items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-sm text-muted-foreground">
+        class="absolute inset-0 flex h-full w-full items-center justify-center border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-sm text-muted-foreground">
         {{ activeView?.fallbackMessage ?? 'No 3D model available.' }}
       </div>
       <div class="absolute inset-0" :style="{ cursor: props.activeTool === 'circle' ? 'crosshair' : 'default' }"
@@ -415,7 +383,6 @@ defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrienta
           :style="{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${zoom})` }">
           <div class="relative flex items-center justify-center">
 
-            <!-- Multi-layer Support -->
             <div v-if="isMultiLayer" class="relative max-h-[70vh] max-w-[80vw]">
               <template v-for="(layer, index) in availableLayers" :key="layer.id">
                 <img v-if="visibleLayerIds.has(layer.id)" :src="layer.url || ''" :alt="layer.title" draggable="false"
@@ -429,7 +396,6 @@ defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrienta
                   :ref="(el) => { if (layer.id === firstVisibleLayerId || (visibleLayerIds.has(layer.id) && !imageRef)) imageRef = el as HTMLImageElement }"
                   @load="handleImageLoad" />
               </template>
-              <!-- Annotations Overlay (for multi-layer) -->
               <svg v-if="assetBounds && (activeViewShapes.length || draftShape)"
                 class="pointer-events-none absolute inset-0" :viewBox="`0 0 1 1`" preserveAspectRatio="none"
                 :style="{ overflow: 'visible', zIndex: 100 }">
@@ -468,14 +434,13 @@ defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrienta
               </svg>
             </div>
             <div v-else
-              class="flex h-[420px] w-[720px] max-w-[85vw] items-center justify-center rounded-lg border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-sm text-muted-foreground">
+              class="flex h-[420px] w-[720px] max-w-[85vw] items-center justify-center border border-dashed border-muted-foreground/40 bg-muted/20 p-6 text-sm text-muted-foreground">
               {{ activeView?.fallbackMessage ?? 'No asset available.' }}
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Layer Controls -->
       <div v-if="isMultiLayer"
         class="absolute right-4 top-4 z-20 rounded-md border bg-card/90 p-3 shadow-sm backdrop-blur" @pointerdown.stop
         @dblclick.stop>

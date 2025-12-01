@@ -81,7 +81,11 @@ const has2DAsset = computed(() => {
   return Boolean(!is3DView.value && asset?.url && !assetError.value)
 })
 const isLayoutView = computed(() => !is3DView.value && (activeView.value?.id?.startsWith("pcb") || isMultiLayer.value))
-const layoutBackgroundStyle = computed(() => (isLayoutView.value ? { backgroundColor: "#001124" } : undefined))
+const layoutBackgroundStyle = computed(() => {
+  if (isLayoutView.value) return { backgroundColor: "#001124" }
+  if (!is3DView.value) return { backgroundColor: "#F2F2F2" } // cs-whiteish for schematics
+  return undefined
+})
 const showControlsBar = computed(() => props.showControls !== false)
 const showZoomControls = computed(() => showControlsBar.value && !is3DView.value)
 const canFlipModel = computed(() => is3DView.value && Boolean(activeAsset.value?.url))
@@ -135,12 +139,11 @@ watch(
   () => activeView.value,
   (view) => {
     if (view?.layers?.length) {
-      // Default to showing Top and Bottom layers if present
       const defaults = view.layers.filter((l) =>
         l.id === "front" || l.id === "back" || l.id === "pcb-top" || l.id === "pcb-bottom"
       ).map((l) => l.id)
 
-      // If no standard layers found but layers exist, show the first one
+
       if (defaults.length === 0 && view.layers.length > 0) {
         defaults.push(view.layers[0].id)
       }
@@ -210,9 +213,13 @@ function computeInitialZoom() {
   const naturalHeight = imageRef.value.naturalHeight || imageRef.value.height
   if (!naturalWidth || !naturalHeight) return 1
 
-  const widthScale = (viewportWidth * defaultViewportFill) / naturalWidth
-  const heightScale = (viewportHeight * defaultViewportFill) / naturalHeight
-  const scale = Math.min(widthScale, heightScale)
+  const isMobile = window.innerWidth < 768
+  const fillFactor = isMobile ? 2.5 : defaultViewportFill
+
+  const widthScale = (viewportWidth * fillFactor) / naturalWidth
+  const heightScale = (viewportHeight * fillFactor) / naturalHeight
+
+  const scale = isMobile ? widthScale : Math.min(widthScale, heightScale)
 
   if (!Number.isFinite(scale) || scale <= 0) return 1
 
@@ -350,33 +357,32 @@ defineExpose({ adjustZoom, resetView })
   <div class="space-y-4">
     <div v-if="showControlsBar" class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-2">
-        <button v-for="view in views" :key="view.id" type="button"
-          class="rounded-md border px-3 py-1 text-sm transition" :class="view.id === activeView?.id
-            ? 'border-primary bg-primary/10 text-primary'
-            : 'border-border text-muted-foreground hover:bg-muted'" @click="setActiveView(view.id)">
+        <Button v-for="view in views" :key="view.id" variant="regular" size="sm" class="px-4 text-sm transition" :class="view.id === activeView?.id
+          ? 'bg-cs-dark-green border-cs-dark-green text-white'
+          : 'bg-cs-lighter-green text-cs-charcoal border-cs-whiteish hover:bg-cs-light-green hover:text-white'"
+          @click="setActiveView(view.id)">
           {{ view.label }}
-        </button>
+        </Button>
       </div>
       <div class="flex items-center gap-2">
         <template v-if="showZoomControls">
-          <Button size="sm" variant="outline" @click="adjustZoom(-1)">
-            −
+          <Button size="sm" variant="regular" class="h-8 w-8 p-0" @click="adjustZoom(-1)">
+            <span class="text-lg leading-none">−</span>
           </Button>
-          <span class="text-xs tabular-nums text-muted-foreground">{{ Math.round(zoom * 100) }}%</span>
-          <Button size="sm" variant="outline" @click="adjustZoom(1)">
-            +
+          <Button size="sm" variant="regular" class="h-8 w-8 p-0" @click="adjustZoom(1)">
+            <span class="text-lg leading-none">+</span>
           </Button>
-          <Button size="sm" variant="secondary" @click="resetView()">
+          <Button size="sm" variant="regular" class="h-8 px-3" @click="resetView()">
             Reset
           </Button>
         </template>
-        <Button v-if="canFlipModel" size="sm" variant="outline" @click="flipModelOrientation">
+        <Button v-if="canFlipModel" size="sm" variant="regular" class="h-8 px-3" @click="flipModelOrientation">
           Flip view
         </Button>
       </div>
     </div>
 
-    <div ref="containerRef" class="relative overflow-hidden rounded-lg border">
+    <div ref="containerRef" class="relative overflow-hidden rounded-lg">
       <div v-if="!views.length" class="flex h-[520px] items-center justify-center text-sm text-muted-foreground">
         No views available.
       </div>
@@ -434,16 +440,19 @@ defineExpose({ adjustZoom, resetView })
             </div>
           </div>
 
-          <!-- Layer Controls -->
           <div v-if="isMultiLayer"
-            class="absolute right-4 top-4 z-20 rounded-md border bg-card/90 p-3 shadow-sm backdrop-blur"
+            class="absolute right-4 top-4 z-20 rounded-lg border border-white bg-cs-lighter-green p-3 shadow-sm backdrop-blur text-cs-charcoal"
             @pointerdown.stop @dblclick.stop>
-            <h4 class="mb-2 text-xs font-semibold text-muted-foreground">Layers</h4>
+            <h4 class="mb-2 text-xs font-semibold text-cs-charcoal">Layers</h4>
             <div class="flex flex-col gap-2">
               <div v-for="layer in availableLayers" :key="layer.id" class="flex items-center gap-2">
-                <Checkbox :id="`layer-${layer.id}`" :model-value="visibleLayerIds.has(layer.id)"
+                <Checkbox :id="`layer-${layer.id}`" :model-value="visibleLayerIds.has(layer.id)" :class="visibleLayerIds.has(layer.id)
+                  ? 'bg-cs-dark-green border-cs-dark-green text-white'
+                  : 'bg-white/10 border-white/60'"
                   @update:model-value="(val: boolean) => toggleLayer(layer.id, val)" />
-                <Label :for="`layer-${layer.id}`" class="text-xs cursor-pointer select-none">{{ layer.title }}</Label>
+                <Label :for="`layer-${layer.id}`" class="text-xs cursor-pointer select-none text-cs-charcoal">
+                  {{ layer.title }}
+                </Label>
               </div>
             </div>
           </div>

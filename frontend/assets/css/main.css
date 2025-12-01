@@ -1,6 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import '@fortawesome/fontawesome-free/css/all.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+    .btn-special {
+        @apply relative overflow-hidden bg-cs-blue text-white font-primary font-bold px-6 py-2 rounded-lg border-2 border-white hover:brightness-105 transition-all uppercase tracking-wider pl-14;
+    }
+
+    .btn-special::before {
+        content: "";
+        @apply absolute left-2 top-0 bottom-0 w-8 my-auto h-full;
+        background: linear-gradient(90deg,
+                #8B5A2B 0%, #8B5A2B 20%,
+                transparent 20%, transparent 30%,
+                #202223 30%, #202223 50%,
+                transparent 50%, transparent 60%,
+                #E45858 60%, #E45858 80%,
+                transparent 80%, transparent 90%);
+    }
+
+    .btn-regular {
+        @apply bg-cs-light-green text-white font-secondary font-medium px-4 py-2 rounded-lg hover:bg-cs-lighter-green hover:text-cs-charcoal transition-colors border border-cs-whiteish;
+    }
+}
 
 @layer base {
     :root {

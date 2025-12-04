@@ -27,6 +27,8 @@ export default defineNuxtConfig({
     authSecret: '', // will be overridden by NUXT_AUTH_SECRET
     public: {
       apiBase: "/api/v1",
+      posthogPublicKey: process.env.NUXT_PUBLIC_POSTHOG_PUBLIC_KEY,
+      posthogHost: process.env.NUXT_PUBLIC_POSTHOG_HOST,
     },
     private: {
       backendUrl: '',

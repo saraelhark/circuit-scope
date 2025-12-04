@@ -129,12 +129,12 @@ async function shareProject() {
     </div>
 
     <div v-else>
-      <div v-if="status === 'pending' && !project" class="flex h-64 items-center justify-center text-muted-foreground">
+      <div v-if="status === 'pending' && !project" class="flex h-64 items-center justify-center text-cs-whiteish">
         Loading project…
       </div>
 
       <div v-else-if="!project"
-        class="rounded-lg border border-dashed border-muted-foreground/30 p-12 text-center text-muted-foreground">
+        class="rounded-lg border border-dashed border-cs-whiteish/30 p-12 text-center text-cs-whiteish">
         Project not found.
       </div>
 
@@ -191,7 +191,7 @@ async function shareProject() {
             </div>
           </div>
 
-          <div class="prose prose-sm text-muted-foreground max-w-none" v-if="project.description">
+          <div class="prose prose-sm text-cs-whiteish max-w-none" v-if="project.description">
             <p>{{ project.description }}</p>
           </div>
         </div>
@@ -200,7 +200,7 @@ async function shareProject() {
           <h2 class="text-xl font-semibold tracking-tight mb-4">Previews</h2>
 
           <div v-if="previewStatus === 'pending'"
-            class="flex h-64 items-center justify-center text-muted-foreground bg-muted/10">
+            class="flex h-64 items-center justify-center text-cs-whiteish bg-muted/10">
             Generating previews…
           </div>
           <div v-else class="overflow-hidden">

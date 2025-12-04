@@ -310,6 +310,7 @@ def _render_board_svgs(source: Path, output_dir: Path) -> list[dict[str, Any]]:
             "--exclude-drawing-sheet",
             "--page-size-mode",
             "2",
+            "--mode-single",
         ]
         command.extend(extra_flags)
         command.append(str(source))

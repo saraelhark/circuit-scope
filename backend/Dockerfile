@@ -26,7 +26,8 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         kicad \
-        kicad-packages3d && \
+        kicad-packages3d \
+        gosu && \
     # Remove KiCad GUI binaries (keep kicad-cli)
     rm -f /usr/bin/kicad \
           /usr/bin/pcbnew \
@@ -61,6 +62,10 @@ RUN uv sync --frozen --no-install-project --no-dev && \
 # Copy application code
 COPY . .
 
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Install the project itself
 RUN uv sync --frozen --no-dev && \
     uv cache clean
@@ -70,6 +75,5 @@ RUN mkdir -p /app/var/storage && chown -R app:app /app/var/storage
 
 EXPOSE 8000
 
-USER app
-
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

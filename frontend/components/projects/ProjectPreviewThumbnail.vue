@@ -6,6 +6,8 @@ import { useProject } from "~/composables/useProjects"
 
 const props = defineProps<{
   projectId: string
+  thumbnailKind?: string | null
+  sourceType?: string | null
 }>()
 
 const projectId = computed(() => props.projectId)
@@ -29,6 +31,30 @@ const selectedAsset = computed<PreviewAsset | null>(() => {
 
   const layouts = previews.layouts ?? []
   const schematics = previews.schematics ?? []
+  const photos = previews.photos ?? []
+
+  const thumbnailKind = props.thumbnailKind ?? null
+  const sourceType = props.sourceType ?? "kicad"
+
+  if (sourceType === "images" || thumbnailKind === "photo") {
+    return photos[0] ?? null
+  }
+
+  if (thumbnailKind === "schematic") {
+    if (schematics[0]) return schematics[0]
+  }
+
+  if (thumbnailKind === "3d") {
+    // Prefer a dedicated 3D render image if the backend generated one.
+    const renderPhoto =
+      photos.find((photo) => photo.id === "board-3d-render") ?? photos[0] ?? null
+
+    if (renderPhoto) {
+      return renderPhoto
+    }
+
+    // No 3D render available – fall back to the default heuristic below.
+  }
 
   const topLayout =
     layouts.find((layout) => /top|front/i.test(layout.title ?? layout.id ?? layout.filename)) ?? layouts[0]
@@ -37,7 +63,21 @@ const selectedAsset = computed<PreviewAsset | null>(() => {
     return topLayout
   }
 
-  return schematics[0] ?? null
+  return schematics[0] ?? photos[0] ?? null
+})
+
+const thumbnailBackgroundClass = computed(() => {
+  const previews = data.value
+  const asset = selectedAsset.value
+  if (!asset || !previews) return "bg-cs-black"
+
+  const schematics = previews.schematics ?? []
+  if (schematics.some((s) => s.id === asset.id)) {
+    // Match the light background used for schematics in ProjectAssetViewer
+    return "bg-cs-whiteish"
+  }
+
+  return "bg-cs-black"
 })
 
 const previewUrl = computed(() => selectedAsset.value?.url ?? null)
@@ -49,7 +89,7 @@ const isLoading = computed(() => status.value === "pending" || status.value === 
 </script>
 
 <template>
-  <div class="relative aspect-square w-full overflow-hidden rounded-md bg-cs-black">
+  <div class="relative aspect-square w-full overflow-hidden rounded-md" :class="thumbnailBackgroundClass">
     <div v-if="isLoading" class="h-full w-full animate-pulse bg-white/10" />
 
     <img v-else-if="previewUrl" :src="previewUrl" :alt="previewAlt" class="h-full w-full object-contain" loading="lazy">

@@ -88,13 +88,18 @@ async function shareProject() {
 <template>
     <Card class="flex flex-col gap-4 p-4 transition-all sm:flex-row sm:items-center sm:justify-between">
         <div class="flex flex-1 items-start gap-4">
-            <div class="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-cs-charcoal flex items-center justify-center">
-                <ProjectPreviewThumbnail :project-id="project.id" />
+            <div class="h-16 w-16 shrink-0">
+                <ProjectPreviewThumbnail :project-id="project.id" :thumbnail-kind="project.thumbnail_kind"
+                    :source-type="project.source_type" />
             </div>
 
             <div class="flex flex-col gap-1">
                 <div class="flex items-center gap-2">
-                    <h3 class="font-semibold leading-none tracking-tight text-white font-primary">
+                    <template v-if="isEditing">
+                        <Input :id="`project-${project.id}-name-inline`" v-model="editName"
+                            class="h-8 px-2 py-1 text-sm font-semibold text-white bg-cs-charcoal/40 border-white/60" />
+                    </template>
+                    <h3 v-else class="font-semibold leading-none tracking-tight text-white font-primary">
                         {{ project.name }}
                     </h3>
                     <div ref="statusMenuRef" class="relative flex items-center gap-2">
@@ -147,10 +152,6 @@ async function shareProject() {
                 </div>
 
                 <div v-if="isEditing" class="mt-3 flex flex-col gap-3 max-w-md" @click.stop>
-                    <div class="space-y-1">
-                        <Label :for="`project-${project.id}-name`">Title</Label>
-                        <Input :id="`project-${project.id}-name`" v-model="editName" />
-                    </div>
                     <div class="space-y-1">
                         <Label :for="`project-${project.id}-description`">Description</Label>
                         <Textarea :id="`project-${project.id}-description`" v-model="editDescription" rows="3" />

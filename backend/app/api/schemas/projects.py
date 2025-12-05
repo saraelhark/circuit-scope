@@ -15,6 +15,9 @@ class ProjectBase(BaseModel):
     is_public: bool = True
     status: str | None = Field(default=None, max_length=50)
     github_repo_url: str | None = Field(default=None, max_length=500)
+    tags: list[str] | None = Field(default=None)
+    source_type: str = Field(default="kicad", max_length=50)
+    thumbnail_kind: str | None = Field(default=None, max_length=50)
 
 
 class ProjectCreate(ProjectBase):
@@ -27,6 +30,8 @@ class ProjectUpdate(BaseModel):
     is_public: bool | None = None
     status: str | None = Field(default=None, max_length=50)
     github_repo_url: str | None = Field(default=None, max_length=500)
+    tags: list[str] | None = Field(default=None)
+    thumbnail_kind: str | None = Field(default=None, max_length=50)
 
 
 class ProjectFileResponse(BaseModel):
@@ -70,3 +75,4 @@ class ProjectPreviewResponse(BaseModel):
     schematics: list[dict[str, Any]]
     layouts: list[dict[str, Any]]
     models: list[dict[str, Any]]
+    photos: list[dict[str, Any]]

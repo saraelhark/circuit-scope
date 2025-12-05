@@ -4,6 +4,7 @@ import { computed } from "vue"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import ProjectAssetViewer from "~/components/projects/ProjectAssetViewer.vue"
+import ProjectImageCarousel from "~/components/projects/ProjectImageCarousel.vue"
 import { buildViewerViews } from "~/lib/reviewViewer"
 import type { Project, ProjectPreviewResponse } from "~/types/api/projects"
 import { useProject } from "~/composables/useProjects"
@@ -86,6 +87,7 @@ const previews = computed(() => previewData.value)
 const schematics = computed(() => previews.value?.schematics ?? [])
 const layouts = computed(() => previews.value?.layouts ?? [])
 const models = computed(() => previews.value?.models ?? [])
+const photos = computed(() => previews.value?.photos ?? [])
 const viewerViews = computed(() => buildViewerViews(schematics.value, layouts.value, models.value))
 
 useHead(() => ({
@@ -194,6 +196,13 @@ async function shareProject() {
           <div class="prose prose-sm text-cs-whiteish max-w-none" v-if="project.description">
             <p>{{ project.description }}</p>
           </div>
+
+          <div v-if="project.tags && project.tags.length" class="mt-2 flex flex-wrap gap-1 font-secondary">
+            <Badge v-for="tag in project.tags" :key="tag" variant="outline"
+              class="border-cs-gold bg-cs-blue/80 text-cs-whiteish text-[11px] px-2 py-0.5 uppercase tracking-wide rounded-sm">
+              {{ tag }}
+            </Badge>
+          </div>
         </div>
 
         <div>
@@ -204,8 +213,9 @@ async function shareProject() {
             Generating previews…
           </div>
           <div v-else class="overflow-hidden">
-            <ProjectAssetViewer :views="viewerViews" :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'"
-              :show-controls="true" />
+            <ProjectImageCarousel v-if="project.source_type === 'images'" :photos="photos" />
+            <ProjectAssetViewer v-else :views="viewerViews"
+              :initial-view-id="schematics.length ? 'schematic' : 'pcb-top'" :show-controls="true" />
           </div>
         </div>
       </div>

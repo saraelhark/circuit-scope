@@ -14,6 +14,12 @@ from pathlib import Path
 from typing import Any, Final
 from uuid import UUID
 
+from fastapi import (
+    HTTPException,
+    status,
+    UploadFile,
+)
+
 from app.core.config import settings
 from app.services.storage.base import StorageError, StorageService
 from app.services.svg_utils import compose_svg_grid, derive_sheet_title
@@ -25,11 +31,14 @@ _PREVIEW_DIR_NAME: Final = "previews"
 _SCHEMATIC_DIR: Final = "schematics"
 _LAYOUT_DIR: Final = "layouts"
 _MODEL_DIR: Final = "models"
+_PHOTOS_DIR: Final = "photos"
 _INDEX_FILENAME: Final = "index.json"
-_SAFE_ASSET_SUFFIXES: Final = {".svg", ".glb"}
+_SAFE_ASSET_SUFFIXES: Final = {".svg", ".glb", ".png", ".jpg", ".jpeg", ".webp"}
 _SAFE_SOURCE_SUFFIXES: Final = {".kicad_sch", ".kicad_pcb", ".kicad_pro", ".kicad_prl"}
 MAX_KICAD_ARCHIVE_SIZE_MB: Final = 30
 MAX_KICAD_ARCHIVE_SIZE_BYTES: Final = MAX_KICAD_ARCHIVE_SIZE_MB * 1024 * 1024
+MAX_IMAGE_PREVIEW_SIZE_MB: Final = 15
+MAX_IMAGE_PREVIEW_SIZE_BYTES: Final = MAX_IMAGE_PREVIEW_SIZE_MB * 1024 * 1024
 
 
 async def process_project_archive(
@@ -48,6 +57,7 @@ async def process_project_archive(
         schematics_root = previews_root / _SCHEMATIC_DIR
         layouts_root = previews_root / _LAYOUT_DIR
         models_root = previews_root / _MODEL_DIR
+        photos_root = previews_root / _PHOTOS_DIR
 
         try:
             extraction_root.mkdir(parents=True, exist_ok=True)
@@ -59,7 +69,13 @@ async def process_project_archive(
             )
             return
 
-        for directory in (previews_root, schematics_root, layouts_root, models_root):
+        for directory in (
+            previews_root,
+            schematics_root,
+            layouts_root,
+            models_root,
+            photos_root,
+        ):
             directory.mkdir(parents=True, exist_ok=True)
 
         index: dict[str, Any] = {
@@ -67,6 +83,7 @@ async def process_project_archive(
             "schematics": [],
             "layouts": [],
             "models": [],
+            "photos": [],
         }
 
         schematic_sources = _find_all_schematics(extraction_root)
@@ -107,6 +124,13 @@ async def process_project_archive(
                 logger.exception(
                     "Board GLB rendering failed for project %s", project_id
                 )
+
+            try:
+                render_entry = _render_board_3d_render(board_file, photos_root)
+                if render_entry:
+                    index["photos"].append(render_entry)
+            except Exception:
+                logger.exception("Board 3D render failed for project %s", project_id)
 
         base_storage_path = _project_preview_base(project_id)
 
@@ -374,6 +398,38 @@ def _render_board_glb(source: Path, output_dir: Path) -> dict[str, Any] | None:
     return None
 
 
+def _render_board_3d_render(source: Path, output_dir: Path) -> dict[str, Any] | None:
+    """Render a static PNG of the 3D board for thumbnails.
+
+    This uses ``kicad-cli pcb render`` to generate a raytraced image of the
+    board. If rendering fails or the file is missing, the caller should fall
+    back to other preview assets.
+    """
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    destination = output_dir / "board-3d.png"
+
+    command = [
+        settings.kicad_cli_path,
+        "pcb",
+        "render",
+        "--output",
+        str(destination),
+        str(source),
+    ]
+
+    _run_cli(command)
+
+    if destination.exists():
+        return {
+            "id": "board-3d-render",
+            "filename": destination.name,
+            "title": "3D render",
+            "path": f"{_PHOTOS_DIR}/{destination.name}",
+        }
+    return None
+
+
 def _run_cli(command: list[str]) -> None:
     """Execute KiCad CLI command with configured timeout."""
 
@@ -459,7 +515,13 @@ async def load_preview_index(
         return json.loads(content)
     except (StorageError, json.JSONDecodeError):
         logger.exception("Failed to read preview index for project %s", project_id)
-        return {"project": {}, "schematics": [], "layouts": [], "models": []}
+        return {
+            "project": {},
+            "schematics": [],
+            "layouts": [],
+            "models": [],
+            "photos": [],
+        }
 
 
 async def list_previews_summary(
@@ -472,8 +534,95 @@ async def list_previews_summary(
         "schematics": [entry["path"] for entry in index.get("schematics", [])],
         "layouts": [entry["path"] for entry in index.get("layouts", [])],
         "models": [entry["path"] for entry in index.get("models", [])],
+        "photos": [entry["path"] for entry in index.get("photos", [])],
         "project": index.get("project", {}),
     }
+
+
+async def save_image_previews_from_uploads(
+    storage: StorageService, project_id: UUID, image_files: list[UploadFile]
+) -> None:
+    """Save uploaded image files as preview photos and write/update the index.
+
+    This is used for image-only projects that skip the KiCad processing pipeline.
+    """
+
+    allowed_suffixes = {".png", ".jpg", ".jpeg", ".webp"}
+
+    if not image_files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one image must be provided for image-only projects",
+        )
+
+    base_storage_path = _project_preview_base(project_id) / _PHOTOS_DIR
+
+    index = await load_preview_index(storage, project_id)
+    existing_photos: list[dict[str, Any]] = index.get("photos", []) or []
+
+    used_filenames: set[str] = {entry.get("filename", "") for entry in existing_photos}
+    photos: list[dict[str, Any]] = []
+
+    for idx, upload in enumerate(image_files, start=len(existing_photos) + 1):
+        filename = upload.filename or f"photo-{idx}.png"
+        suffix = Path(filename).suffix.lower()
+
+        if suffix not in allowed_suffixes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only PNG, JPG, JPEG and WEBP images are supported",
+            )
+
+        file_obj = upload.file
+        size_bytes: int | None = None
+        try:
+            file_obj.seek(0, os.SEEK_END)
+            size_bytes = file_obj.tell()
+        except (OSError, AttributeError):
+            size_bytes = None
+        finally:
+            try:
+                file_obj.seek(0)
+            except (OSError, AttributeError):
+                pass
+
+        if size_bytes is not None and size_bytes > MAX_IMAGE_PREVIEW_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Each image must be {MAX_IMAGE_PREVIEW_SIZE_MB} MB or smaller",
+            )
+
+        slug = slugify(f"photo-{idx}") or f"photo-{idx}"
+        safe_filename = unique_filename(slug, suffix or ".png", used_filenames)
+        used_filenames.add(safe_filename)
+
+        storage_path = str(base_storage_path / safe_filename)
+
+        try:
+            await storage.save(storage_path, file_obj)
+        except StorageError as exc:
+            logger.exception("Failed to save image preview %s: %s", storage_path, exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to store image preview",
+            ) from exc
+        finally:
+            try:
+                await upload.close()
+            except Exception:  # pragma: no cover - best-effort cleanup
+                pass
+
+        photos.append(
+            {
+                "id": slug,
+                "filename": safe_filename,
+                "title": filename,
+                "path": f"{_PHOTOS_DIR}/{safe_filename}",
+            }
+        )
+
+    index["photos"] = existing_photos + photos
+    await _write_index(storage, project_id, index)
 
 
 async def validate_preview_asset_path(project_id: UUID, asset_path: str) -> str:

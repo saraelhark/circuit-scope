@@ -90,6 +90,9 @@ class Project(TimestampMixin, Base):
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     secret_link: Mapped[str | None] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="open", nullable=False)
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
+    source_type: Mapped[str] = mapped_column(String, default="kicad", nullable=False)
+    thumbnail_kind: Mapped[str | None] = mapped_column(String)
     view_count: Mapped[int] = mapped_column(default=0, nullable=False)
     processing_status: Mapped[str] = mapped_column(
         String, default="queued", nullable=False

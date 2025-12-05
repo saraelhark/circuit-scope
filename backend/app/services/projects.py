@@ -121,14 +121,23 @@ async def create_project(
         status=payload.status or "open",
         github_repo_url=payload.github_repo_url,
         secret_link=None,
+        tags=payload.tags,
+        source_type=payload.source_type or "kicad",
+        thumbnail_kind=payload.thumbnail_kind,
     )
 
     session.add(project)
     await session.flush()
 
+    # Image-only projects skip the KiCad processing pipeline and are considered
+    # processed as soon as they are created.
+    if project.source_type == "images":
+        project.processing_status = "completed"
+        project.processing_error = None
+
     upload_path: Path | None = None
 
-    if upload_file is not None:
+    if upload_file is not None and project.source_type == "kicad":
         filename = upload_file.filename
         if not filename:
             raise HTTPException(

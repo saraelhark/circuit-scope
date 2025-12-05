@@ -12,6 +12,9 @@ export interface Project {
   description: string | null
   is_public: boolean
   status: string | null
+  tags?: string[] | null
+  source_type?: string
+  thumbnail_kind?: string | null
   processing_status?: string // "queued" | "processing" | "completed" | "failed"
   processing_error?: string | null
   created_at: string
@@ -58,6 +61,7 @@ export interface ProjectPreviewResponse {
   schematics: PreviewAsset[]
   layouts: PreviewAsset[]
   models: PreviewAsset[]
+  photos: PreviewAsset[]
 }
 
 export interface ProjectCreatePayload {
@@ -65,6 +69,9 @@ export interface ProjectCreatePayload {
   description?: string | null
   is_public?: boolean
   owner_id?: string | null
+  tags?: string[]
+  source_type?: string
+  thumbnail_kind?: string | null
 }
 
 export interface ProjectUpdatePayload {
@@ -72,6 +79,8 @@ export interface ProjectUpdatePayload {
   description?: string | null
   is_public?: boolean | null
   status?: string | null
+  tags?: string[] | null
+  thumbnail_kind?: string | null
 }
 
 export interface ListProjectsQuery {

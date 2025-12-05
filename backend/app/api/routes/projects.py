@@ -42,6 +42,7 @@ from app.services.projects import (
 )
 from app.services.previews import (
     load_preview_index,
+    save_image_previews_from_uploads,
     validate_preview_asset_path,
 )
 from app.services.storage.base import StorageService, StorageError
@@ -52,6 +53,10 @@ logger = logging.getLogger(__name__)
 _MEDIA_TYPES = {
     ".svg": "image/svg+xml",
     ".glb": "model/gltf-binary",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
 }
 
 
@@ -63,6 +68,9 @@ async def create_project_endpoint(
     background_tasks: BackgroundTasks,
     project_data: str = Form(..., description="JSON-encoded ProjectCreate payload"),
     upload: UploadFile | None = File(default=None, description="KiCad project ZIP"),
+    images: list[UploadFile] | None = File(
+        default=None, description="Image previews for image-only projects"
+    ),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageService = Depends(get_storage_service),
 ) -> ProjectUploadResponse:
@@ -75,10 +83,21 @@ async def create_project_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()
         ) from exc
 
-    project_response, upload_path = await create_project(session, payload, upload)
+    # Normalise images list for easier handling
+    image_files = images or []
+
+    # Create project row; KiCad projects may include a ZIP archive, image-only
+    # projects skip the archive pipeline entirely.
+    effective_upload: UploadFile | None = (
+        upload if payload.source_type == "kicad" else None
+    )
+    project_response, upload_path = await create_project(
+        session, payload, effective_upload
+    )
 
     upload_result: dict[str, Any] | None = None
-    if upload_path:
+
+    if payload.source_type == "kicad" and upload_path:
         background_tasks.add_task(
             run_project_processing_task,
             storage,
@@ -89,6 +108,14 @@ async def create_project_endpoint(
             "filename": upload.filename if upload else "archive.zip",
             "status": "processing_queued",
         }
+    elif payload.source_type == "images":
+        # For image-only projects, persist uploaded images as preview photos and
+        # write the preview index immediately.
+        await save_image_previews_from_uploads(
+            storage,
+            project_response.id,
+            image_files,
+        )
 
     return ProjectUploadResponse(project=project_response, upload_result=upload_result)
 
@@ -167,7 +194,13 @@ async def get_project_previews_endpoint(
     try:
         index = await load_preview_index(storage, project_id)
     except FileNotFoundError:
-        index = {"project": {}, "schematics": [], "layouts": [], "models": []}
+        index = {
+            "project": {},
+            "schematics": [],
+            "layouts": [],
+            "models": [],
+            "photos": [],
+        }
 
     def build_asset_entry(entry: dict[str, Any]) -> dict[str, Any]:
         asset_path = entry.get("path")
@@ -196,12 +229,14 @@ async def get_project_previews_endpoint(
     schematics = [build_asset_entry(entry) for entry in index.get("schematics", [])]
     layouts = [build_asset_entry(entry) for entry in index.get("layouts", [])]
     models = [build_asset_entry(entry) for entry in index.get("models", [])]
+    photos = [build_asset_entry(entry) for entry in index.get("photos", [])]
 
     return ProjectPreviewResponse(
         project=index.get("project", {}),
         schematics=schematics,
         layouts=layouts,
         models=models,
+        photos=photos,
     )
 
 

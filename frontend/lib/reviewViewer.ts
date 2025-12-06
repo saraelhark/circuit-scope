@@ -69,3 +69,36 @@ export function buildViewerViews(
 
     return views
 }
+
+export function buildReviewViews(
+    sourceType: string | undefined,
+    schematics: PreviewAsset[],
+    layouts: PreviewAsset[],
+    models: PreviewAsset[] = [],
+    photos: PreviewAsset[] = [],
+): ViewerView[] {
+    const shouldUsePhotos =
+        sourceType === "images" || (!schematics.length && !layouts.length && photos.length > 0)
+
+    if (shouldUsePhotos) {
+        if (!photos.length) {
+            return [
+                {
+                    id: "photos",
+                    label: "Photos",
+                    asset: null,
+                    fallbackMessage: "No photos uploaded.",
+                },
+            ]
+        }
+
+        return photos.map((photo, index) => ({
+            id: `photo-${photo.id ?? index}`,
+            label: photo.title || `Photo ${index + 1}`,
+            asset: photo,
+            fallbackMessage: "Photo not available.",
+        }))
+    }
+
+    return buildViewerViews(schematics, layouts, models)
+}

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue"
 import type { ViewerView } from "~/types/viewer"
 import { Button } from "~/components/ui/button"
 
@@ -17,6 +18,29 @@ const emit = defineEmits<{
     (e: "select-tool", tool: Tool): void
     (e: "zoom-in" | "zoom-out" | "reset-zoom" | "flip-view"): void
 }>()
+
+const isPhotoMode = computed(
+    () =>
+        props.views.length > 0 &&
+        props.views.every((view) => view.id.startsWith("photo-")),
+)
+
+const currentIndex = computed(() => {
+    if (!props.views.length) return 0
+    const idx = props.views.findIndex((view) => view.id === props.currentViewId)
+    return idx === -1 ? 0 : idx
+})
+
+const totalViews = computed(() => props.views.length)
+
+function goToOffset(offset: number) {
+    if (!props.views.length) return
+    const nextIndex = (currentIndex.value + offset + props.views.length) % props.views.length
+    const nextView = props.views[nextIndex]
+    if (nextView) {
+        emit("select-view", nextView.id)
+    }
+}
 
 const toolOptions: { label: string; value: Tool }[] = [
     { label: "Pan", value: "pan" },
@@ -41,11 +65,26 @@ const zoomControls = [
 
     <div
         class="absolute left-3 top-3 z-20 flex gap-2 rounded-lg border bg-card/90 px-4 py-2 backdrop-blur max-w-[calc(100vw-24px)] overflow-x-auto scrollbar-hide lg:max-w-none">
-        <Button v-for="view in props.views" :key="view.id" type="button" variant="regular" size="sm"
-            class="shrink-0 px-3 text-xs" :class="getButtonClass(props.currentViewId === view.id)"
-            @click="emit('select-view', view.id)">
-            {{ view.label }}
-        </Button>
+        <template v-if="isPhotoMode">
+            <div class="flex items-center gap-2">
+                <Button type="button" variant="regular" size="sm" class="h-8 w-8 p-0 text-xs" @click="goToOffset(-1)">
+                    <span class="leading-none">&lt;</span>
+                </Button>
+                <span class="text-xs font-mono">
+                    {{ currentIndex + 1 }} / {{ totalViews }}
+                </span>
+                <Button type="button" variant="regular" size="sm" class="h-8 w-8 p-0 text-xs" @click="goToOffset(1)">
+                    <span class="leading-none">&gt;</span>
+                </Button>
+            </div>
+        </template>
+        <template v-else>
+            <Button v-for="view in props.views" :key="view.id" type="button" variant="regular" size="sm"
+                class="shrink-0 px-3 text-xs" :class="getButtonClass(props.currentViewId === view.id)"
+                @click="emit('select-view', view.id)">
+                {{ view.label }}
+            </Button>
+        </template>
     </div>
     <div
         class="absolute left-1/2 bottom-6 -translate-x-1/2 z-20 flex items-center gap-3 rounded-lg border bg-card/90 px-4 py-2 backdrop-blur lg:top-3 lg:bottom-auto">

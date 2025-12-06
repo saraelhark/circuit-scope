@@ -12,10 +12,10 @@ import AuthChoiceModal from "~/components/projects/AuthChoiceModal.vue"
 import { useProject } from "~/composables/useProjects"
 import { useCommentThreads } from "~/composables/useCommentThreads"
 import { generateAlias } from "~/lib/alias"
-import { buildViewerViews } from "~/lib/reviewViewer"
+import { buildReviewViews } from "~/lib/reviewViewer"
 import { mapThreadsToAnnotations } from "~/lib/reviewAnnotations"
 import type { AnnotationTool, CommentThread, ThreadAnnotation } from "~/types/api/commentThreads"
-import type { ProjectPreviewResponse } from "~/types/api/projects"
+import type { Project, ProjectPreviewResponse } from "~/types/api/projects"
 
 definePageMeta({
     layout: false,
@@ -26,7 +26,7 @@ const router = useRouter()
 
 const projectId = computed(() => route.params.id as string)
 
-const { getProjectPreviews } = useProject()
+const { getProject, getProjectPreviews } = useProject()
 const { listThreads, createThread, addComment, updateThreadResolution } = useCommentThreads()
 
 const { status } = useAuth()
@@ -41,6 +41,13 @@ function getAnonAlias(): string {
     return anonAlias.value as string
 }
 
+const { data: projectData } = useAsyncData<Project>(
+    () => getProject(projectId.value),
+    {
+        watch: [projectId],
+    },
+)
+
 const { data: previewData } = useAsyncData<ProjectPreviewResponse>(
     () => getProjectPreviews(projectId.value),
     {
@@ -48,19 +55,27 @@ const { data: previewData } = useAsyncData<ProjectPreviewResponse>(
     },
 )
 
+const project = computed(() => projectData.value)
 const previews = computed(() => previewData.value)
 
 const schematics = computed(() => previews.value?.schematics ?? [])
 const layouts = computed(() => previews.value?.layouts ?? [])
 const models = computed(() => previews.value?.models ?? [])
+const photos = computed(() => previews.value?.photos ?? [])
 
-const projectOwnerId = computed(() => (previews.value?.project as any)?.owner_id as string | undefined)
+const sourceType = computed(
+    () => (project.value as any)?.source_type as string | undefined,
+)
+
+const projectOwnerId = computed(
+    () => (project.value as any)?.owner_id as string | undefined,
+)
 const canResolveThreads = computed(
     () => status.value === "authenticated" && !!backendUser.value?.id && backendUser.value.id === projectOwnerId.value,
 )
 
 const viewerViews = computed<ViewerView[]>(() =>
-    buildViewerViews(schematics.value, layouts.value, models.value),
+    buildReviewViews(sourceType.value, schematics.value, layouts.value, models.value, photos.value),
 )
 
 const {

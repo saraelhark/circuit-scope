@@ -62,7 +62,6 @@ const modelViewerRef = ref<InstanceType<typeof ProjectModelViewer> | null>(null)
 const activeView = computed(() => props.views.find((view) => view.id === activeViewId.value) ?? props.views[0])
 const activeAsset = computed<PreviewAsset | null | undefined>(() => activeView.value?.asset)
 
-// Multi-layer support
 const availableLayers = computed(() => activeView.value?.layers ?? [])
 const isMultiLayer = computed(() => availableLayers.value.length > 0)
 const visibleLayerIds = ref<Set<string>>(new Set())
@@ -83,7 +82,7 @@ const has2DAsset = computed(() => {
 const isLayoutView = computed(() => !is3DView.value && (activeView.value?.id?.startsWith("pcb") || isMultiLayer.value))
 const layoutBackgroundStyle = computed(() => {
   if (isLayoutView.value) return { backgroundColor: "#001124" }
-  if (!is3DView.value) return { backgroundColor: "#F2F2F2" } // cs-whiteish for schematics
+  if (!is3DView.value) return { backgroundColor: "#F2F2F2" }
   return undefined
 })
 const showControlsBar = computed(() => props.showControls !== false)
@@ -158,7 +157,7 @@ watch(
 watch(
   () => displayAsset.value?.url,
   () => {
-    if (isMultiLayer.value) return // Handled by layer loading
+    if (isMultiLayer.value) return
     assetError.value = null
     isAssetLoaded.value = false
     nextTick(() => {

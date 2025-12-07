@@ -45,15 +45,12 @@ const selectedAsset = computed<PreviewAsset | null>(() => {
   }
 
   if (thumbnailKind === "3d") {
-    // Prefer a dedicated 3D render image if the backend generated one.
     const renderPhoto =
       photos.find((photo) => photo.id === "board-3d-render") ?? photos[0] ?? null
 
     if (renderPhoto) {
       return renderPhoto
     }
-
-    // No 3D render available – fall back to the default heuristic below.
   }
 
   const topLayout =
@@ -73,7 +70,6 @@ const thumbnailBackgroundClass = computed(() => {
 
   const schematics = previews.schematics ?? []
   if (schematics.some((s) => s.id === asset.id)) {
-    // Match the light background used for schematics in ProjectAssetViewer
     return "bg-cs-whiteish"
   }
 

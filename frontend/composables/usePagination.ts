@@ -38,7 +38,6 @@ export function usePagination(
         }
     }
 
-    // For client-side pagination
     function paginateArray<T>(items: T[]): T[] {
         const start = (currentPage.value - 1) * pageSize.value
         return items.slice(start, start + pageSize.value)

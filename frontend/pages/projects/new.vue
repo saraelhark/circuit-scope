@@ -72,7 +72,6 @@ function commitCurrentTag() {
     tags.value.push(value)
   }
 
-  // Clear the input so the committed tag only appears as a chip.
   form.tagsText = ""
 }
 
@@ -81,7 +80,6 @@ function onTagKeydown(event: KeyboardEvent) {
     event.preventDefault()
     commitCurrentTag()
   } else if (event.key === "Backspace" && form.tagsText === "" && tags.value.length) {
-    // Allow quickly deleting the last tag with backspace when the input is empty.
     tags.value.pop()
   }
 }
@@ -204,7 +202,6 @@ async function handleSubmit() {
   }
 
   try {
-    // Ensure any in-progress tag is committed before submission.
     commitCurrentTag()
     const rawTags = tags.value
 

@@ -131,7 +131,8 @@ watch(() => backendUser.value?.id, (newId) => {
 </script>
 
 <template>
-    <header class="sticky top-0 z-50 w-full bg-cs-light-green text-cs-charcoal font-primary">
+    <header
+        class="sticky top-0 z-50 w-full bg-cs-light-green text-cs-charcoal font-primary border-b-4 border-cs-whiteish">
         <div class="container px-8 sm:px-16 flex h-14 items-center justify-between">
             <div class="flex items-center gap-4">
                 <NuxtLink to="/"

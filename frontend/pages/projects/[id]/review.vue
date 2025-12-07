@@ -128,7 +128,6 @@ const authorColorMap = computed(() => {
         }
     }
 
-    // Ensure current user has a color
     const myKey = currentUserKey.value
     if (myKey && !map.has(myKey)) {
         map.set(myKey, palette[colorIndex % palette.length])

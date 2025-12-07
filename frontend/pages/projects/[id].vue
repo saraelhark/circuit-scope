@@ -61,6 +61,9 @@ const projectStatusVariant = computed(() =>
   projectStatusLabel.value === "Closed" ? "secondary" : "success",
 )
 
+const totalComments = computed(() => project.value?.total_comment_count ?? 0)
+const openComments = computed(() => project.value?.open_comment_count ?? 0)
+
 const { data: previewData, status: previewStatus, refresh: refreshPreviews } = useAsyncData<ProjectPreviewResponse>(
   `project-${projectId.value}-previews`,
   () => getProjectPreviews(projectId.value),
@@ -180,16 +183,34 @@ async function shareProject() {
                     Review
                   </Button>
                 </div>
+                <div class="mt-1 text-md text-cs-whiteish md:hidden">
+                  <span v-if="totalComments">
+                    {{ totalComments }} review comment{{ totalComments === 1 ? "" : "s" }}
+                  </span>
+                  <span v-else>
+                    Be the first to comment
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div class="hidden md:flex flex-col gap-3 sm:flex-row shrink-0">
-              <Button variant="regular" @click="shareProject">
-                <i class="fas fa-share-alt h-4 w-4"></i>
-              </Button>
-              <Button variant="cta" @click="goToReview">
-                Go to Review
-              </Button>
+            <div class="hidden md:flex flex-col gap-2 sm:gap-3 sm:items-end shrink-0">
+              <div class="flex gap-3">
+                <Button variant="regular" @click="shareProject">
+                  <i class="fas fa-share-alt h-4 w-4"></i>
+                </Button>
+                <Button variant="cta" @click="goToReview">
+                  Go to Review
+                </Button>
+              </div>
+              <div class="text-md text-cs-whiteish">
+                <span v-if="totalComments">
+                  {{ totalComments }} review comment{{ totalComments === 1 ? "" : "s" }}
+                </span>
+                <span v-else>
+                  Be the first to comment
+                </span>
+              </div>
             </div>
           </div>
 

@@ -1,8 +1,9 @@
 export default defineNuxtPlugin(() => {
+    const isProd = process.env.NODE_ENV === 'production'
     const visitorId = useCookie('visitor_id', {
-        maxAge: 60 * 60 * 24 * 365, // 1 year
+        maxAge: 60 * 60 * 24 * 30, // 1 month
         sameSite: 'lax',
-        secure: false // Set to true in production if https
+        secure: isProd
     })
 
     if (!visitorId.value) {

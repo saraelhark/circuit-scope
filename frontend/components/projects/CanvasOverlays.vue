@@ -35,7 +35,8 @@ const emit = defineEmits<{
             <div v-if="activeThread?.id !== pin.id" class="absolute pointer-events-auto" :style="{
                 left: `${pin.pinX * 100}%`,
                 top: `${pin.pinY * 100}%`,
-                transform: `scale(${1 / zoom})`
+                transform: `translate(0, -100%) scale(${1 / zoom})`,
+                transformOrigin: 'bottom left'
             }" @pointerdown.stop>
                 <CommentPin :label="pin.data.initial" :comment="pin.data.comment" :author-name="pin.data.authorName"
                     :color="pin.data.color" :is-expanded="false" @mouseenter="emit('pinHover', pin.id)"

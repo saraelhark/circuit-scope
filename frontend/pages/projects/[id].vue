@@ -5,9 +5,7 @@ import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import ProjectAssetViewer from "~/components/projects/ProjectAssetViewer.vue"
 import ProjectImageCarousel from "~/components/projects/ProjectImageCarousel.vue"
-import { buildViewerViews } from "~/lib/reviewViewer"
-import type { Project, ProjectPreviewResponse } from "~/types/api/projects"
-import { useProject } from "~/composables/useProjects"
+import { useProjectData } from "~/composables/useProjectData"
 
 definePageMeta({
   layout: "default",
@@ -18,80 +16,19 @@ const router = useRouter()
 
 const projectId = computed(() => route.params.id as string)
 
-const { getProject, getProjectPreviews } = useProject()
-
-const { data, error, refresh, status } = useAsyncData<Project>(
-  `project-${projectId.value}`,
-  () => getProject(projectId.value),
-  {
-    watch: [projectId],
-  },
-)
-
-const project = computed(() => data.value)
-
-let pollInterval: NodeJS.Timeout | null = null
-
-watch(project, (newVal) => {
-  if (newVal?.processing_status === "queued" || newVal?.processing_status === "processing") {
-    if (!pollInterval) {
-      pollInterval = setInterval(() => {
-        refresh()
-      }, 2000)
-    }
-  } else {
-    if (pollInterval) {
-      clearInterval(pollInterval)
-      pollInterval = null
-      refreshPreviews()
-    }
-  }
-}, { immediate: true })
-
-onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
-})
-
-const projectStatusLabel = computed(() => {
-  const status = project.value?.status
-  return status && status.toLowerCase() === "closed" ? "Closed" : "Open"
-})
-
-const projectStatusVariant = computed(() =>
-  projectStatusLabel.value === "Closed" ? "secondary" : "success",
-)
-
-const totalComments = computed(() => project.value?.total_comment_count ?? 0)
-const openComments = computed(() => project.value?.open_comment_count ?? 0)
-
-const { data: previewData, status: previewStatus, refresh: refreshPreviews } = useAsyncData<ProjectPreviewResponse>(
-  `project-${projectId.value}-previews`,
-  () => getProjectPreviews(projectId.value),
-  {
-    watch: [projectId],
-    immediate: false,
-  },
-)
-
-onMounted(() => {
-  if (project.value?.processing_status === 'completed') {
-    refreshPreviews()
-  }
-})
-
-watch(project, (p) => {
-  if (p?.processing_status === 'completed' && !previewData.value) {
-    refreshPreviews()
-  }
-})
-
-const previews = computed(() => previewData.value)
-
-const schematics = computed(() => previews.value?.schematics ?? [])
-const layouts = computed(() => previews.value?.layouts ?? [])
-const models = computed(() => previews.value?.models ?? [])
-const photos = computed(() => previews.value?.photos ?? [])
-const viewerViews = computed(() => buildViewerViews(schematics.value, layouts.value, models.value))
+const {
+  project,
+  error,
+  refresh,
+  status,
+  projectStatusLabel,
+  projectStatusVariant,
+  totalComments,
+  previewStatus,
+  photos,
+  viewerViews,
+  schematics
+} = useProjectData(projectId)
 
 useHead(() => ({
   title: project.value ? `${project.value.name} – Project – Circuit Scope` : "Project – Circuit Scope",

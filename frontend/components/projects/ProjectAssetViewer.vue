@@ -4,6 +4,8 @@ import { Button } from "~/components/ui/button"
 import { Checkbox } from "~/components/ui/checkbox"
 import { Label } from "~/components/ui/label"
 
+import { useCanvasInteraction } from "~/composables/useCanvasInteraction"
+import { useLayerManager } from "~/composables/useLayerManager"
 import ProjectModelViewer from "~/components/projects/ProjectModelViewer.vue"
 import type { PreviewAsset } from "~/types/api/projects"
 import type { ViewerView } from "~/types/viewer"
@@ -37,20 +39,33 @@ const emit = defineEmits<{
 
 const activeViewId = ref<string | null>(null)
 
-const zoom = ref(1)
-const minZoom = 0.25
-const maxZoom = 6
-const zoomStep = 0.2
-const translate = ref({ x: 0, y: 0 })
+const is3DView = computed(() => activeView.value?.kind === "3d")
 
-const defaultViewportFill = 0.9
-
-const panOrigin = ref({ x: 0, y: 0 })
-const pointerStart = ref({ x: 0, y: 0 })
-const isPanning = ref(false)
-const activePointerId = ref<number | null>(null)
+const disablePan = computed(() => props.interactionMode !== "pan" || is3DView.value)
 
 const contentRef = ref<HTMLDivElement | null>(null)
+
+const {
+  zoom,
+  translate,
+  isPanning,
+  adjustZoom,
+  setZoom,
+  resetTranslate,
+  handleWheel,
+  handlePointerDown,
+  handlePointerMove,
+  stopPanning
+} = useCanvasInteraction(contentRef, { disableInteraction: disablePan })
+
+function handleCombinedPointerMove(e: PointerEvent) {
+  handlePointerMove(e)
+}
+
+function handlePointerUp(e: PointerEvent) {
+  stopPanning(e)
+}
+
 const imageRef = ref<HTMLImageElement | null>(null)
 
 const isAssetLoaded = ref(false)
@@ -62,9 +77,15 @@ const modelViewerRef = ref<InstanceType<typeof ProjectModelViewer> | null>(null)
 const activeView = computed(() => props.views.find((view) => view.id === activeViewId.value) ?? props.views[0])
 const activeAsset = computed<PreviewAsset | null | undefined>(() => activeView.value?.asset)
 
-const availableLayers = computed(() => activeView.value?.layers ?? [])
-const isMultiLayer = computed(() => availableLayers.value.length > 0)
-const visibleLayerIds = ref<Set<string>>(new Set())
+const {
+  availableLayers,
+  isMultiLayer,
+  visibleLayerIds,
+  firstVisibleLayerId,
+  bottomVisibleLayerId,
+  toggleLayer
+} = useLayerManager(activeView)
+
 
 const displayAsset = computed<PreviewAsset | null>(() => activeAsset.value ?? null)
 const displayAssetKey = computed(() => displayAsset.value?.url ?? displayAsset.value?.path ?? "")
@@ -73,7 +94,6 @@ const displayAssetAlt = computed(
   () => displayAsset.value?.title ?? displayAsset.value?.filename ?? "Preview asset",
 )
 
-const is3DView = computed(() => activeView.value?.kind === "3d")
 const has2DAsset = computed(() => {
   if (isMultiLayer.value) return visibleLayerIds.value.size > 0
   const asset = displayAsset.value
@@ -89,24 +109,9 @@ const showControlsBar = computed(() => props.showControls !== false)
 const showZoomControls = computed(() => showControlsBar.value && !is3DView.value)
 const canFlipModel = computed(() => is3DView.value && Boolean(activeAsset.value?.url))
 
-const firstVisibleLayerId = computed(() => {
-  if (!isMultiLayer.value) return null
-  for (const layer of availableLayers.value) {
-    if (visibleLayerIds.value.has(layer.id)) return layer.id
-  }
-  return null
-})
 
-const bottomVisibleLayerId = computed(() => {
-  if (!isMultiLayer.value) return null
-  let last: string | null = null
-  for (const layer of availableLayers.value) {
-    if (visibleLayerIds.value.has(layer.id)) {
-      last = layer.id
-    }
-  }
-  return last
-})
+// Removed redundant manual layer computations and watchers as they are now handled by useLayerManager
+
 
 watch(
   () => props.views,
@@ -133,26 +138,6 @@ watch(activeViewId, (value, _old) => {
   emit("viewChange", value)
   resetView()
 })
-
-watch(
-  () => activeView.value,
-  (view) => {
-    if (view?.layers?.length) {
-      const defaults = view.layers.filter((l) =>
-        l.id === "front" || l.id === "back" || l.id === "pcb-top" || l.id === "pcb-bottom"
-      ).map((l) => l.id)
-
-
-      if (defaults.length === 0 && view.layers.length > 0) {
-        defaults.push(view.layers[0].id)
-      }
-      visibleLayerIds.value = new Set(defaults)
-    } else {
-      visibleLayerIds.value = new Set()
-    }
-  },
-  { immediate: true }
-)
 
 watch(
   () => displayAsset.value?.url,
@@ -186,15 +171,9 @@ function setActiveView(viewId: string) {
   activeViewId.value = viewId
 }
 
-function adjustZoom(direction: 1 | -1) {
-  const nextZoom = Number((zoom.value + direction * zoomStep).toFixed(2))
-  zoom.value = Math.min(maxZoom, Math.max(minZoom, nextZoom))
-  updateAssetBounds()
-}
-
 function resetView(skipZoomReset = false) {
-  if (!skipZoomReset) zoom.value = computeInitialZoom()
-  translate.value = { x: 0, y: 0 }
+  if (!skipZoomReset) setZoom(computeInitialZoom())
+  resetTranslate()
   nextTick(() => updateAssetBounds())
 }
 
@@ -213,7 +192,7 @@ function computeInitialZoom() {
   if (!naturalWidth || !naturalHeight) return 1
 
   const isMobile = window.innerWidth < 768
-  const fillFactor = isMobile ? 2.5 : defaultViewportFill
+  const fillFactor = isMobile ? 2.5 : 0.9
 
   const widthScale = (viewportWidth * fillFactor) / naturalWidth
   const heightScale = (viewportHeight * fillFactor) / naturalHeight
@@ -222,62 +201,16 @@ function computeInitialZoom() {
 
   if (!Number.isFinite(scale) || scale <= 0) return 1
 
-  const clamped = Math.min(maxZoom, Math.max(minZoom, scale))
+  // Clamp using local consts or hardcoded values if not exported from composable, 
+  // but useCanvasInteraction has its own limits. Here we just return the calculated value.
+  const min = 0.25, max = 6
+  const clamped = Math.min(max, Math.max(min, scale))
   return Number(clamped.toFixed(2))
-}
-
-function handleWheel(event: WheelEvent) {
-  if (!contentRef.value || props.interactionMode !== "pan") return
-  event.preventDefault()
-
-  const delta = Math.sign(event.deltaY)
-  adjustZoom(delta > 0 ? -1 : 1)
-}
-
-function handlePointerDown(event: PointerEvent) {
-  if (props.interactionMode !== "pan") return
-  if (event.pointerType === "touch") event.preventDefault()
-  if (!contentRef.value || isPanning.value) return
-
-  isPanning.value = true
-  activePointerId.value = event.pointerId
-  pointerStart.value = { x: event.clientX, y: event.clientY }
-  panOrigin.value = { ...translate.value }
-  contentRef.value.setPointerCapture(event.pointerId)
-}
-
-function handlePointerMove(event: PointerEvent) {
-  if (props.interactionMode !== "pan") return
-  if (!isPanning.value || activePointerId.value !== event.pointerId) return
-  event.preventDefault()
-
-  const deltaX = event.clientX - pointerStart.value.x
-  const deltaY = event.clientY - pointerStart.value.y
-
-  translate.value = {
-    x: panOrigin.value.x + deltaX,
-    y: panOrigin.value.y + deltaY,
-  }
-}
-
-function handlePointerUp(event: PointerEvent) {
-  if (props.interactionMode !== "pan") return
-  if (!isPanning.value || activePointerId.value !== event.pointerId) return
-
-  isPanning.value = false
-  activePointerId.value = null
-  contentRef.value?.releasePointerCapture(event.pointerId)
-}
-
-function handlePointerLeave(event: PointerEvent) {
-  if (props.interactionMode !== "pan") return
-  if (!isPanning.value || activePointerId.value !== event.pointerId) return
-  handlePointerUp(event)
 }
 
 function handleAssetLoad() {
   isAssetLoaded.value = true
-  zoom.value = computeInitialZoom()
+  setZoom(computeInitialZoom())
   nextTick(() => updateAssetBounds())
 }
 
@@ -339,15 +272,8 @@ function handleModelBounds(rect: DOMRect) {
   }
 }
 
-function toggleLayer(layerId: string, visible: boolean) {
-  const next = new Set(visibleLayerIds.value)
-  if (visible) {
-    next.add(layerId)
-  } else {
-    next.delete(layerId)
-  }
-  visibleLayerIds.value = next
-}
+// toggleLayer removed
+
 
 defineExpose({ adjustZoom, resetView })
 </script>
@@ -396,8 +322,8 @@ defineExpose({ adjustZoom, resetView })
         </div>
         <div v-else ref="contentRef" class="relative h-[520px] touch-none select-none"
           :class="has2DAsset ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'" :style="layoutBackgroundStyle"
-          @wheel.prevent="handleWheel" @pointerdown="handlePointerDown" @pointermove="handlePointerMove"
-          @pointerup="handlePointerUp" @pointercancel="handlePointerUp" @pointerleave="handlePointerLeave"
+          @wheel.prevent="handleWheel" @pointerdown="handlePointerDown" @pointermove="handleCombinedPointerMove"
+          @pointerup="handlePointerUp" @pointercancel="handlePointerUp" @pointerleave="handlePointerUp"
           @dblclick.prevent="resetView()" @click="handleCanvasClick">
           <div
             class="absolute left-1/2 top-1/2 flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-center">

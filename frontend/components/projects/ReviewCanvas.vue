@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { Checkbox } from "~/components/ui/checkbox"
 import { Label } from "~/components/ui/label"
 import { useCanvasInteraction } from "~/composables/useCanvasInteraction"
+import { useLayerManager } from "~/composables/useLayerManager"
 import CanvasOverlays from "~/components/projects/CanvasOverlays.vue"
 import CommentIcon from "~/components/projects/CommentIcon.vue"
 import ProjectModelViewer from "~/components/projects/ProjectModelViewer.vue"
@@ -83,9 +84,14 @@ const activeView = computed(() => props.views.find((v) => v.id === activeViewId.
 const composedAsset = computed(() => activeView.value?.asset ?? null)
 const activeAsset = computed(() => composedAsset.value ?? activeView.value?.asset)
 
-const availableLayers = computed(() => activeView.value?.layers ?? [])
-const isMultiLayer = computed(() => availableLayers.value.length > 0)
-const visibleLayerIds = ref<Set<string>>(new Set())
+const {
+    availableLayers,
+    isMultiLayer,
+    visibleLayerIds,
+    firstVisibleLayerId,
+    bottomVisibleLayerId,
+    toggleLayer
+} = useLayerManager(activeView)
 
 const is3DView = computed(() => activeView.value?.kind === "3d")
 const isLayoutView = computed(() => !is3DView.value && (activeView.value?.id?.startsWith("pcb") || isMultiLayer.value))
@@ -111,24 +117,11 @@ function handleCombinedPointerMove(e: PointerEvent) {
     handlePointerMove(e)
 }
 
-const firstVisibleLayerId = computed(() => {
-    if (!isMultiLayer.value) return null
-    for (const layer of availableLayers.value) {
-        if (visibleLayerIds.value.has(layer.id)) return layer.id
-    }
-    return null
-})
+// firstVisibleLayerId computed removed
 
-const bottomVisibleLayerId = computed(() => {
-    if (!isMultiLayer.value) return null
-    let last: string | null = null
-    for (const layer of availableLayers.value) {
-        if (visibleLayerIds.value.has(layer.id)) {
-            last = layer.id
-        }
-    }
-    return last
-})
+
+// bottomVisibleLayerId computed removed
+
 
 function setActiveView(viewId: string) {
     if (activeViewId.value === viewId) return
@@ -156,23 +149,8 @@ watch(activeViewId, (val) => {
     resetView()
 })
 
-watch(
-    () => activeView.value,
-    (view) => {
-        if (view?.layers?.length) {
-            const defaults = view.layers.filter((l) =>
-                l.id === "front" || l.id === "back" || l.id === "pcb-top" || l.id === "pcb-bottom"
-            ).map((l) => l.id)
-            if (defaults.length === 0 && view.layers.length > 0) {
-                defaults.push(view.layers[0].id)
-            }
-            visibleLayerIds.value = new Set(defaults)
-        } else {
-            visibleLayerIds.value = new Set()
-        }
-    },
-    { immediate: true }
-)
+// activeView watcher for layers removed
+
 
 function resetView() {
     resetTranslate()
@@ -281,15 +259,8 @@ function flipModelOrientation() {
     modelViewerRef.value?.toggleFlip()
 }
 
-function toggleLayer(layerId: string, visible: boolean) {
-    const next = new Set(visibleLayerIds.value)
-    if (visible) {
-        next.add(layerId)
-    } else {
-        next.delete(layerId)
-    }
-    visibleLayerIds.value = next
-}
+// toggleLayer function removed
+
 
 const cursorX = ref(0)
 const cursorY = ref(0)
@@ -428,7 +399,7 @@ defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrienta
                         <Checkbox :id="`layer-${layer.id}`" :model-value="visibleLayerIds.has(layer.id)"
                             @update:model-value="(val: boolean) => toggleLayer(layer.id, val)" />
                         <Label :for="`layer-${layer.id}`" class="text-xs cursor-pointer select-none">{{ layer.title
-                            }}</Label>
+                        }}</Label>
                     </div>
                 </div>
             </div>

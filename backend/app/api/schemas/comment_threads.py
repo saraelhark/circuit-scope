@@ -12,25 +12,8 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 class ThreadAnnotation(BaseModel):
     """Annotation metadata describing a circular highlight around a point."""
 
-    tool: Literal["circle"]
+    tool: Literal["pin"]
     data: dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def validate_annotation(self) -> "ThreadAnnotation":
-        """Validate the annotation data."""
-        radius = self.data.get("radius")
-        if radius is None:
-            raise ValueError("Circle annotations require a radius value.")
-        try:
-            radius_value = float(radius)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("Circle radius must be a number.") from exc
-        if not 0 < radius_value <= 0.5:
-            raise ValueError(
-                "Circle radius must be between 0 and 0.5 (relative to image width)."
-            )
-        self.data = {"radius": radius_value}
-        return self
 
 
 class ThreadCommentBase(BaseModel):

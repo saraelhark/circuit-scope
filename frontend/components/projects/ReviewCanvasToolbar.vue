@@ -3,7 +3,7 @@ import { computed } from "vue"
 import type { ViewerView } from "~/types/viewer"
 import { Button } from "~/components/ui/button"
 
-type Tool = "pan" | "circle"
+type Tool = "pan" | "pin"
 
 interface Props {
     views: ViewerView[]
@@ -44,7 +44,7 @@ function goToOffset(offset: number) {
 
 const toolOptions: { label: string; value: Tool }[] = [
     { label: "Pan", value: "pan" },
-    { label: "Circle", value: "circle" },
+    { label: "Comment", value: "pin" },
 ]
 
 const activeClass = 'bg-cs-dark-green border-cs-dark-green text-white'
@@ -91,8 +91,10 @@ const zoomControls = [
         <div class="flex items-center gap-1">
             <Button v-for="tool in toolOptions" :key="tool.value" type="button" variant="regular" size="sm"
                 class="px-3 text-xs" :class="getButtonClass(props.selectedTool === tool.value)"
-                @click="emit('select-tool', tool.value)">
-                {{ tool.label }}
+                @click="emit('select-tool', tool.value)" :title="tool.label">
+                <i v-if="tool.value === 'pan'" class="fa-regular fa-hand-pointer text-lg"></i>
+                <i v-else-if="tool.value === 'pin'" class="fa-regular fa-comment text-lg"></i>
+                <span v-else>{{ tool.label }}</span>
             </Button>
         </div>
         <div class="h-4 w-px bg-border mx-1"></div>

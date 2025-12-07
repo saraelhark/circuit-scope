@@ -1,4 +1,4 @@
-export type AnnotationTool = "circle"
+export type AnnotationTool = "pin"
 
 export interface ThreadAnnotation {
   tool: AnnotationTool

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch, onMounted } from "vue"
+import { computed, ref, watch, onMounted } from "vue"
 
 import { type ViewerView } from "~/types/viewer"
 import ReviewCanvas, {
     type ViewerAnnotation,
-    type CircleViewerAnnotation,
+    type PinViewerAnnotation,
 } from "~/components/projects/ReviewCanvas.vue"
 import ReviewCanvasToolbar from "~/components/projects/ReviewCanvasToolbar.vue"
 import ReviewCommentsSidebar from "~/components/projects/ReviewCommentsSidebar.vue"
@@ -40,6 +40,16 @@ function getAnonAlias(): string {
     }
     return anonAlias.value as string
 }
+
+const currentUserInitial = computed(() => {
+    if (backendUser.value?.display_name) {
+        return backendUser.value.display_name.charAt(0).toUpperCase()
+    }
+    if (anonAlias.value) {
+        return anonAlias.value.charAt(0).toUpperCase()
+    }
+    return "G"
+})
 
 const { data: projectData } = useAsyncData<Project>(
     () => getProject(projectId.value),
@@ -92,14 +102,54 @@ const {
 const threads = computed(() => threadData.value?.items ?? [])
 const threadStatusComputed = computed(() => threadStatus.value)
 
+const currentUserKey = computed(() => {
+    if (status.value === 'authenticated' && backendUser.value?.id) {
+        return backendUser.value.id
+    }
+    return anonAlias.value || 'Anonymous'
+})
+
+const authorColorMap = computed(() => {
+    const map = new Map<string, string>()
+    const palette = ['#FFD02B', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#14B8A6', '#F97316']
+    let colorIndex = 0
+
+    const sortedThreads = [...threads.value].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+    for (const thread of sortedThreads) {
+        const comments = thread.comments || []
+        for (const comment of comments) {
+            const key = comment.author_id || comment.guest_name || 'Anonymous'
+            if (!map.has(key)) {
+                map.set(key, palette[colorIndex % palette.length])
+                colorIndex++
+            }
+        }
+    }
+
+    // Ensure current user has a color
+    const myKey = currentUserKey.value
+    if (myKey && !map.has(myKey)) {
+        map.set(myKey, palette[colorIndex % palette.length])
+    }
+
+    return map
+})
+
+const currentUserColor = computed(() => {
+    return authorColorMap.value.get(currentUserKey.value) || '#FFD02B'
+})
+
 const viewAnnotations = computed<Record<string, ViewerAnnotation[]>>(() =>
-    mapThreadsToAnnotations(threads.value),
+    mapThreadsToAnnotations(threads.value, authorColorMap.value),
 )
 
 const activeThreadId = ref<string | null>(null)
 const activeThread = computed(() =>
     threads.value.find((thread) => thread.id === activeThreadId.value) ?? null,
 )
+
+const highlightedThreadId = ref<string | null>(null)
 
 watch(threads, (current) => {
     if (!current.length) {
@@ -118,10 +168,6 @@ watch(threads, (current) => {
         }
         return
     }
-
-    if (!current.some((thread) => thread.id === activeThreadId.value)) {
-        activeThreadId.value = current[0].id
-    }
 })
 
 watch(() => route.query.thread, (newThreadId) => {
@@ -136,11 +182,17 @@ watch(() => route.query.thread, (newThreadId) => {
     }
 })
 
-const selectedTool = ref<'pan' | 'circle'>('pan')
+const selectedTool = ref<'pan' | 'pin'>('pan')
 
-type ShapeCreatedPayload = { viewId: string } & CircleViewerAnnotation
+type PinCreatedPayload = {
+    viewId: string
+    pinX: number
+    pinY: number
+    tool: "pin"
+    data: { initial: string; comment: string; authorName: string }
+}
 
-function handleShapeCreated(payload: ShapeCreatedPayload) {
+function handlePinCreated(payload: PinCreatedPayload) {
     pendingPin.value = {
         viewId: payload.viewId,
         x: payload.pinX,
@@ -148,16 +200,16 @@ function handleShapeCreated(payload: ShapeCreatedPayload) {
         tool: payload.tool,
         data: payload.data,
     }
-    formError.value = null
-    newThreadForm.content = ""
+    activeThreadId.value = null
 }
+
 const currentViewId = ref<string>("schematic")
 const pendingPin = ref<{
     viewId: string
     x: number
     y: number
     tool: AnnotationTool
-    data: CircleAnnotationData
+    data: PinAnnotationData
 } | null>(null)
 
 watch(viewerViews, (views) => {
@@ -167,20 +219,11 @@ watch(viewerViews, (views) => {
     }
 })
 
-type CircleAnnotationData = CircleViewerAnnotation['data']
-const newThreadForm = reactive({
-    content: "",
-})
-
-const replyForm = reactive({
-    content: "",
-})
-
-const formError = ref<string | null>(null)
-const replyError = ref<string | null>(null)
+type PinAnnotationData = PinViewerAnnotation['data']
 
 const showAuthModal = ref(false)
 const authModalContext = ref<"thread" | "reply" | null>(null)
+const tempContent = ref("")
 
 function setActiveView(viewId: string) {
     if (currentViewId.value === viewId) {
@@ -196,74 +239,59 @@ function openThread(thread: CommentThread) {
     if (thread.view_id) {
         setActiveView(thread.view_id)
     }
+    pendingPin.value = null
 }
 
-function selectTool(tool: 'pan' | 'circle') {
+function highlightThread(threadId: string) {
+    highlightedThreadId.value = threadId
+}
+
+function unhighlightThread() {
+    highlightedThreadId.value = null
+}
+
+function selectTool(tool: 'pan' | 'pin') {
     selectedTool.value = tool
+    pendingPin.value = null
 }
 
 function cancelPendingPin() {
     pendingPin.value = null
-    formError.value = null
 }
 
 
-async function submitNewThread() {
-    if (!pendingPin.value) {
-        formError.value = "Click on the canvas to place a pin first."
-        return
-    }
-    if (!newThreadForm.content.trim()) {
-        formError.value = "Comment content is required."
-        return
-    }
-
-    formError.value = null
-
-    if (status.value === "authenticated" && backendUser.value?.id) {
-        await createThreadAsAuthenticated()
-        return
-    }
-
-    authModalContext.value = "thread"
-    getAnonAlias()
-    showAuthModal.value = true
-}
-
-async function createThreadAsAuthenticated() {
-    if (!pendingPin.value || !backendUser.value?.id) return
-
-    const annotation: ThreadAnnotation = {
-        tool: pendingPin.value.tool,
-        data: pendingPin.value.data,
-    }
-
-    const payload = {
-        view_id: pendingPin.value.viewId,
-        pin_x: pendingPin.value.x,
-        pin_y: pendingPin.value.y,
-        annotation,
-        initial_comment: {
-            content: newThreadForm.content,
-            author_id: backendUser.value.id,
-        },
-    }
-
-    const created = await createThread(projectId.value, payload)
-    newThreadForm.content = ""
-    pendingPin.value = null
-    activeThreadId.value = created.id
-    await refreshThreads()
-}
-
-async function createThreadAsAnonymous() {
+async function submitComment(content: string) {
     if (!pendingPin.value) return
 
-    const alias = getAnonAlias()
+    const isAnonymous = status.value !== "authenticated"
+    const isFirstTime = !anonAlias.value
+
+    if (isAnonymous && isFirstTime) {
+        tempContent.value = content
+        authModalContext.value = "thread"
+        getAnonAlias()
+        showAuthModal.value = true
+        return
+    }
+
+    await executeSubmitComment(content)
+}
+
+async function executeSubmitComment(content: string) {
+    if (!pendingPin.value) return
 
     const annotation: ThreadAnnotation = {
         tool: pendingPin.value.tool,
         data: pendingPin.value.data,
+    }
+
+    let authorId = null
+    let guestName = null
+
+    if (status.value === "authenticated" && backendUser.value?.id) {
+        authorId = backendUser.value.id
+    } else {
+        guestName = getAnonAlias()
     }
 
     const payload = {
@@ -272,79 +300,77 @@ async function createThreadAsAnonymous() {
         pin_y: pendingPin.value.y,
         annotation,
         initial_comment: {
-            content: newThreadForm.content,
-            guest_name: alias,
+            content: content,
+            author_id: authorId,
+            guest_name: guestName
         },
     }
 
-    const created = await createThread(projectId.value, payload)
-    newThreadForm.content = ""
-    pendingPin.value = null
-    activeThreadId.value = created.id
-    await refreshThreads()
+    try {
+        const created = await createThread(projectId.value, payload)
+        pendingPin.value = null
+        activeThreadId.value = created.id
+        await refreshThreads()
+        sidebarOpen.value = true
+    } catch (e: any) {
+        console.error("Failed to create thread", e)
+    }
 }
 
-async function submitReply() {
-    const thread = activeThread.value
-    if (!thread) {
-        replyError.value = "Select a thread first."
-        return
-    }
-    if (!replyForm.content.trim()) {
-        replyError.value = "Reply content is required."
-        return
-    }
-    replyError.value = null
-
-    if (status.value === "authenticated" && backendUser.value?.id) {
-        await submitReplyAsAuthenticated()
-        return
-    }
-
-    authModalContext.value = "reply"
-    getAnonAlias()
-    showAuthModal.value = true
-}
-
-async function submitReplyAsAuthenticated() {
-    const thread = activeThread.value
-    if (!thread || !backendUser.value?.id) return
-
-    await addComment(projectId.value, thread.id, {
-        content: replyForm.content,
-        author_id: backendUser.value.id,
-        parent_id: null,
-    })
-
-    replyForm.content = ""
-    await refreshThreads()
-}
-
-async function submitReplyAsAnonymous() {
+async function submitReply(content: string) {
     const thread = activeThread.value
     if (!thread) return
 
-    const alias = getAnonAlias()
+    const isAnonymous = status.value !== "authenticated"
+    const isFirstTime = !anonAlias.value
 
-    await addComment(projectId.value, thread.id, {
-        content: replyForm.content,
-        author_id: null,
-        parent_id: null,
-        guest_name: alias,
-    })
+    if (isAnonymous && isFirstTime) {
+        tempContent.value = content
+        authModalContext.value = "reply"
+        getAnonAlias()
+        showAuthModal.value = true
+        return
+    }
 
-    replyForm.content = ""
-    await refreshThreads()
+    await executeSubmitReply(content)
+}
+
+async function executeSubmitReply(content: string) {
+    const thread = activeThread.value
+    if (!thread) return
+
+    let authorId = null
+    let guestName = null
+
+    if (status.value === "authenticated" && backendUser.value?.id) {
+        authorId = backendUser.value.id
+    } else {
+        guestName = getAnonAlias()
+    }
+
+    try {
+        await addComment(projectId.value, thread.id, {
+            content: content,
+            author_id: authorId,
+            parent_id: null,
+            guest_name: guestName
+        })
+        await refreshThreads()
+    } catch (e: any) {
+        console.error("Failed to submit reply", e)
+    }
 }
 
 async function continueAsAnonymous() {
+    const content = tempContent.value
     if (authModalContext.value === "thread") {
-        await createThreadAsAnonymous()
+        await executeSubmitComment(content)
     } else if (authModalContext.value === "reply") {
-        await submitReplyAsAnonymous()
+        await executeSubmitReply(content)
     }
     showAuthModal.value = false
     authModalContext.value = null
+    tempContent.value = ""
 }
 
 function goToLogin() {
@@ -356,6 +382,7 @@ function goToLogin() {
 function cancelAuthModal() {
     showAuthModal.value = false
     authModalContext.value = null
+    tempContent.value = ""
 }
 
 async function toggleThreadResolution(thread: CommentThread) {
@@ -419,8 +446,13 @@ onMounted(() => {
                 @reset-zoom="resetZoom" @flip-view="flipModel" />
 
             <ReviewCanvas ref="viewer" class="h-full w-full" :views="viewerViews" :initial-view-id="currentViewId"
-                :active-tool="selectedTool" :annotations="viewAnnotations" @view-change="setActiveView"
-                @shape-created="handleShapeCreated">
+                :active-tool="selectedTool" :annotations="viewAnnotations" :highlighted-thread-id="highlightedThreadId"
+                :pending-pin="pendingPin ? { x: pendingPin.x, y: pendingPin.y } : null" :active-thread="activeThread"
+                :current-user-initial="currentUserInitial" :author-color-map="authorColorMap"
+                :current-user-color="currentUserColor" @view-change="setActiveView" @pin-created="handlePinCreated"
+                @pin-click="(id) => activeThreadId = id" @pin-hover="highlightThread" @pin-leave="unhighlightThread"
+                @submit-comment="submitComment" @cancel-comment="cancelPendingPin" @submit-reply="submitReply"
+                @resolve-thread="toggleThreadResolution" @close-thread="activeThreadId = null">
                 <template #overlay="slotProps">
                     <component :is="{ ...slotProps }" />
                 </template>
@@ -457,13 +489,10 @@ onMounted(() => {
 
             <div class="flex-1 overflow-hidden p-4">
                 <ReviewCommentsSidebar :threads="threads" :active-thread-id="activeThreadId"
-                    :thread-status="threadStatusComputed" :pending-pin-present="!!pendingPin" :form-error="formError"
-                    :reply-error="replyError" :new-thread-content="newThreadForm.content"
-                    :reply-content="replyForm.content" @update:newThreadContent="newThreadForm.content = $event"
-                    @update:replyContent="replyForm.content = $event" @open-thread="openThread"
-                    @submit-new-thread="submitNewThread" @cancel-pending-pin="cancelPendingPin"
-                    @submit-reply="submitReply" @toggle-thread-resolution="toggleThreadResolution"
-                    :can-resolve-threads="canResolveThreads" />
+                    :thread-status="threadStatusComputed" :pending-pin-present="false" :form-error="null"
+                    :reply-error="null" new-thread-content="" reply-content="" @open-thread="openThread"
+                    @toggle-thread-resolution="toggleThreadResolution" @highlight-thread="highlightThread"
+                    @unhighlight-thread="unhighlightThread" :can-resolve-threads="canResolveThreads" />
             </div>
         </aside>
     </div>

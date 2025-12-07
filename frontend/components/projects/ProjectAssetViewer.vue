@@ -359,7 +359,7 @@ defineExpose({ adjustZoom, resetView })
       <div class="flex flex-wrap items-center gap-2">
         <Button v-for="view in views" :key="view.id" variant="regular" size="sm" class="px-4 text-sm transition" :class="view.id === activeView?.id
           ? 'bg-cs-dark-green border-cs-dark-green text-white'
-          : 'bg-cs-lighter-green text-cs-charcoal border-cs-whiteish hover:bg-cs-light-green hover:text-white'"
+          : 'bg-cs-light-green text-cs-charcoal border-cs-whiteish hover:bg-cs-light-green hover:text-white'"
           @click="setActiveView(view.id)">
           {{ view.label }}
         </Button>
@@ -441,7 +441,7 @@ defineExpose({ adjustZoom, resetView })
           </div>
 
           <div v-if="isMultiLayer"
-            class="absolute right-4 top-4 z-20 rounded-lg border border-white bg-cs-lighter-green p-3 shadow-sm backdrop-blur text-cs-charcoal"
+            class="absolute right-4 top-4 z-20 rounded-lg border border-white bg-cs-light-green p-3 shadow-sm backdrop-blur text-cs-charcoal"
             @pointerdown.stop @dblclick.stop>
             <h4 class="mb-2 text-xs font-semibold text-cs-charcoal">Layers</h4>
             <div class="flex flex-col gap-2">

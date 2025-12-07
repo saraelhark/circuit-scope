@@ -18,7 +18,7 @@ export const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         cta: "bg-cs-lime text-cs-charcoal font-primary font-bold hover:brightness-105 uppercase tracking-wide text-lg h-auto py-4 px-8 rounded-lg transition-all",
-        regular: "bg-cs-light-green text-white font-secondary font-medium hover:bg-cs-lighter-green hover:text-cs-charcoal transition-colors border border-cs-whiteish h-auto px-4 py-2 rounded-lg",
+        regular: "bg-cs-light-green text-white font-secondary font-medium hover:bg-cs-light-green hover:text-cs-charcoal transition-colors border border-cs-whiteish h-auto px-4 py-2 rounded-lg",
         special: "btn-special",
       },
       size: {

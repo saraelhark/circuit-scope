@@ -12,7 +12,7 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 class ThreadAnnotation(BaseModel):
     """Annotation metadata describing a circular highlight around a point."""
 
-    tool: Literal["pin"]
+    tool: Literal["pin", "circle"]
     data: dict[str, Any] = Field(default_factory=dict)
 
 

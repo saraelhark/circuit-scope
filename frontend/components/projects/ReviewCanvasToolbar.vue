@@ -48,7 +48,7 @@ const toolOptions: { label: string; value: Tool }[] = [
 ]
 
 const activeClass = 'bg-cs-dark-green border-cs-dark-green text-white'
-const inactiveClass = 'bg-cs-lighter-green text-cs-charcoal border-cs-whiteish hover:bg-cs-light-green hover:text-white'
+const inactiveClass = 'bg-cs-light-green text-cs-charcoal border-cs-whiteish hover:bg-cs-light-green hover:text-white'
 
 function getButtonClass(isActive: boolean) {
     return isActive ? activeClass : inactiveClass

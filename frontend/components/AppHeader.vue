@@ -131,20 +131,19 @@ watch(() => backendUser.value?.id, (newId) => {
 </script>
 
 <template>
-    <header class="sticky top-0 z-50 w-full bg-cs-lighter-green text-cs-charcoal font-primary">
+    <header class="sticky top-0 z-50 w-full bg-cs-light-green text-cs-charcoal font-primary">
         <div class="container px-8 sm:px-16 flex h-14 items-center justify-between">
             <div class="flex items-center gap-4">
                 <NuxtLink to="/"
                     class="flex items-center gap-2 text-xl font-bold text-cs-charcoal hover:opacity-80 transition-opacity">
                     <img class="h-8 w-8 rounded-lg" src="/logo.svg" alt="Circuit Scope logo" />
-                    <span class="ml-4 text-cs-dark-green hidden sm:block">Circuit Scope</span>
+                    <span class="ml-4 text-cs-whiteish hidden sm:block">Circuit Scope</span>
                 </NuxtLink>
             </div>
 
             <div class="flex items-center gap-1 sm:gap-4">
                 <Button as="a" href="https://github.com/saraelhark/circuit-scope" target="_blank" rel="noreferrer"
-                    variant="ghost" size="icon"
-                    class="text-cs-charcoal hover:bg-cs-light-green/20 hidden sm:inline-flex">
+                    variant="ghost" size="icon" class="text-cs-charcoal hover:opacity-80 hidden sm:inline-flex">
                     <i class="fab fa-github text-xl text-cs-dark-green"></i>
                     <span class="sr-only">Open Circuit Scope on GitHub</span>
                 </Button>
@@ -213,7 +212,7 @@ watch(() => backendUser.value?.id, (newId) => {
                         </button>
 
                         <div v-if="isUserMenuOpen"
-                            class="absolute right-0 mt-2 w-56 origin-top-right rounded-lg border bg-cs-lighter-green p-1 shadow-lg focus:outline-none animate-in fade-in zoom-in-95 duration-200 z-50 text-foreground font-secondary">
+                            class="absolute right-0 mt-2 w-56 origin-top-right rounded-lg border bg-cs-light-green p-1 shadow-lg focus:outline-none animate-in fade-in zoom-in-95 duration-200 z-50 text-foreground font-secondary">
                             <NuxtLink to="/dashboard"
                                 class="relative flex cursor-default select-none items-center rounded-sm p-2 text-sm outline-none hover:bg-cs-charcoal/10"
                                 @click="isUserMenuOpen = false">

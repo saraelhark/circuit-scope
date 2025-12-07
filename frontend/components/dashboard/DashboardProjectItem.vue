@@ -113,7 +113,7 @@ async function shareProject() {
                         </button>
 
                         <div v-if="showStatusMenu"
-                            class="absolute right-0 z-10 mt-12 p-1 w-40 rounded-lg border border-white/30 bg-cs-lighter-green text-xs text-foreground"
+                            class="absolute right-0 z-10 mt-12 p-1 w-40 rounded-lg border border-white/30 bg-cs-light-green text-xs text-foreground"
                             @click.stop>
                             <button type="button"
                                 class="flex w-full items-center gap-2 p-2 rounded-sm hover:bg-cs-charcoal/10"

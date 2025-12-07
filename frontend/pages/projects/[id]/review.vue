@@ -9,6 +9,7 @@ import ReviewCanvas, {
 import ReviewCanvasToolbar from "~/components/projects/ReviewCanvasToolbar.vue"
 import ReviewCommentsSidebar from "~/components/projects/ReviewCommentsSidebar.vue"
 import AuthChoiceModal from "~/components/projects/AuthChoiceModal.vue"
+import AppHeader from "~/components/AppHeader.vue"
 import { useProject } from "~/composables/useProjects"
 import { useCommentThreads } from "~/composables/useCommentThreads"
 import { generateAlias } from "~/lib/alias"
@@ -422,22 +423,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <header class="sticky top-0 z-50 w-full bg-cs-lighter-green text-cs-charcoal font-primary">
-        <div class="container px-8 sm:px-16 flex h-14 items-center justify-between">
-            <div class="flex items-center gap-4">
-                <NuxtLink to="/"
-                    class="flex items-center gap-2 text-xl font-bold text-cs-charcoal hover:opacity-80 transition-opacity">
-                    <img class="h-8 w-8 rounded-lg" src="/logo.svg" alt="Circuit Scope logo" />
-                    <span class="ml-4 text-cs-dark-green hidden sm:block">Circuit Scope</span>
-                </NuxtLink>
-            </div>
-
-
-            <div class="flex items-center gap-2">
-
-            </div>
-        </div>
-    </header>
+    <AppHeader />
     <div class="flex h-screen supports-[height:100dvh]:h-[100dvh] w-full overflow-hidden relative">
 
         <div class="relative flex-1 bg-neutral-50 dark:bg-neutral-900 w-full h-full">
@@ -480,14 +466,14 @@ onMounted(() => {
                 &gt;
             </button>
 
-            <div class="flex items-center justify-between p-4 border-b lg:hidden">
+            <div class="flex items-center justify-between p-1 border-b lg:hidden">
                 <h3 class="font-semibold">Comments</h3>
                 <button @click="toggleSidebar" class="p-2 hover:bg-accent rounded-md">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <div class="flex-1 overflow-hidden p-4">
+            <div class="flex-1 overflow-hidden p-1">
                 <ReviewCommentsSidebar :threads="threads" :active-thread-id="activeThreadId"
                     :thread-status="threadStatusComputed" :pending-pin-present="false" :form-error="null"
                     :reply-error="null" new-thread-content="" reply-content="" @open-thread="openThread"

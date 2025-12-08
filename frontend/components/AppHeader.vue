@@ -52,21 +52,17 @@ const handleSignOut = async () => {
 async function fetchUnreadCount() {
     if (!backendUser.value?.id) return
     try {
-        const res = await $fetch<{ count: number }>('/api/v1/notifications/unread-count', {
-            headers: { 'X-User-Id': backendUser.value.id }
-        })
+        const res = await $fetch<{ count: number }>('/api/v1/notifications/unread-count')
         unreadCount.value = res.count
     } catch (e) {
-        console.error('Failed to fetch unread count', e)
+        console.error('Failed to fetch unread notifications', e)
     }
 }
 
 async function fetchNotifications() {
     if (!backendUser.value?.id) return
     try {
-        notifications.value = await $fetch<any[]>('/api/v1/notifications', {
-            headers: { 'X-User-Id': backendUser.value.id }
-        })
+        notifications.value = await $fetch<any[]>('/api/v1/notifications')
     } catch (e) {
         console.error('Failed to fetch notifications', e)
     }
@@ -82,7 +78,6 @@ async function markAsRead(notification: any) {
         try {
             await $fetch(`/api/v1/notifications/${notification.id}/read`, {
                 method: 'POST',
-                headers: { 'X-User-Id': backendUser.value.id }
             })
         } catch (e) {
             console.error('Failed to mark as read', e)
@@ -105,7 +100,6 @@ async function markAllRead() {
     try {
         await $fetch('/api/v1/notifications/read-all', {
             method: 'POST',
-            headers: { 'X-User-Id': backendUser.value.id }
         })
         unreadCount.value = 0
         notifications.value.forEach(n => n.is_read = true)

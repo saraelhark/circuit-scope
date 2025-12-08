@@ -265,9 +265,16 @@ async def update_project(
     session: AsyncSession,
     project_id: UUID,
     payload: ProjectUpdate,
+    current_user_id: UUID,
 ) -> ProjectResponse:
     """Update a project."""
     project = await get_project_orm_model(session, project_id)
+
+    if project.owner_id != current_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to modify this project",
+        )
 
     for field, value in payload.model_dump(
         exclude_unset=True, exclude_none=True
@@ -283,9 +290,16 @@ async def delete_project(
     session: AsyncSession,
     storage: StorageService,
     project_id: UUID,
+    current_user_id: UUID,
 ) -> None:
     """Delete a project."""
     project = await get_project_orm_model(session, project_id)
+
+    if project.owner_id != current_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to delete this project",
+        )
 
     file_paths = [file.storage_path for file in project.files]
 

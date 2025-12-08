@@ -151,9 +151,6 @@ def _safe_extract(zip_file: zipfile.ZipFile, destination: Path) -> None:
     """Extract zip contents ensuring paths stay within destination."""
 
     dest_root = destination.resolve()
-
-    safe_suffixes = _SAFE_SOURCE_SUFFIXES
-
     for member in zip_file.infolist():
         filename = member.filename
         if filename.startswith("__MACOSX/") or filename.endswith("/.DS_Store"):
@@ -167,11 +164,8 @@ def _safe_extract(zip_file: zipfile.ZipFile, destination: Path) -> None:
             within_destination = False
 
         if not within_destination:
-            if Path(filename).suffix in safe_suffixes:
-                logger.info("Allowing nested KiCad asset outside root: %s", filename)
-            else:
-                logger.warning("Skipping unsafe archive member: %s", filename)
-                continue
+            logger.warning("Skipping unsafe archive member outside root: %s", filename)
+            continue
 
         zip_file.extract(member, dest_root)
 

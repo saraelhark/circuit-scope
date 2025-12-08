@@ -14,5 +14,12 @@ def get_consumer_identifier(request: Request) -> str:
     if visitor_id:
         return visitor_id
 
+    client_host = getattr(request.client, "host", None)
+    if client_host:
+        return client_host
+
+    # Final stable fallback
+    return "anonymous"
+
 
 limiter = Limiter(key_func=get_consumer_identifier, default_limits=["50/minute"])

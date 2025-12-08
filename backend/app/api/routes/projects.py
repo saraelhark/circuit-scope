@@ -22,7 +22,7 @@ from fastapi.responses import Response
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_db_session, get_storage_service
+from app.api.dependencies import get_db_session, get_storage_service, get_current_user
 from app.api.schemas.projects import (
     ProjectCreate,
     ProjectListResponse,
@@ -40,6 +40,7 @@ from app.services.projects import (
     run_project_processing_task,
     increment_project_view,
 )
+from db.models import User
 from app.services.previews import (
     load_preview_index,
     save_image_previews_from_uploads,
@@ -165,9 +166,10 @@ async def update_project_endpoint(
     project_id: UUID,
     payload: ProjectUpdate,
     session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> ProjectResponse:
     """Update a project."""
-    return await update_project(session, project_id, payload)
+    return await update_project(session, project_id, payload, current_user.id)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -175,9 +177,10 @@ async def delete_project_endpoint(
     project_id: UUID,
     session: AsyncSession = Depends(get_db_session),
     storage: StorageService = Depends(get_storage_service),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """Delete a project."""
-    await delete_project(session, storage, project_id)
+    await delete_project(session, storage, project_id, current_user.id)
     return None
 
 

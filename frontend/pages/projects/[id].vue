@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, watch } from "vue"
 
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import ProjectAssetViewer from "~/components/projects/ProjectAssetViewer.vue"
 import ProjectImageCarousel from "~/components/projects/ProjectImageCarousel.vue"
 import { useProjectData } from "~/composables/useProjectData"
+import { useAppSeo } from "~/composables/useAppSeo"
 
 definePageMeta({
   layout: "default",
@@ -30,9 +31,29 @@ const {
   schematics
 } = useProjectData(projectId)
 
-useHead(() => ({
-  title: project.value ? `${project.value.name} – Project – Circuit Scope` : "Project – Circuit Scope",
-}))
+watch(project, (value) => {
+  if (!value) return
+
+  const title = `${value.name} – Project`
+  const description = value.description || "PCB/Circuit Board design on Circuit Scope open for community review."
+
+  useAppSeo({
+    title,
+    description,
+    path: `/projects/${value.id}`,
+    schemaOrg: {
+      "@context": "https://schema.org",
+      "@type": "CreativeWork",
+      name: value.name,
+      description: value.description,
+    },
+  })
+
+  defineOgImageComponent('OgTemplate', {
+    heading: value.name,
+    description: value.description || "PCB/Circuit Board design on Circuit Scope open for community review.",
+  })
+}, { immediate: true })
 
 function goToReview() {
   router.push(`/projects/${projectId.value}/review`)

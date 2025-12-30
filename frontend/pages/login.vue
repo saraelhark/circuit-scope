@@ -10,6 +10,11 @@ watch(session, (newSession) => {
         navigateTo('/dashboard');
     }
 }, { immediate: true });
+
+defineOgImageComponent('OgTemplate', {
+    heading: 'Sign In',
+    description: 'Join the Circuit Scope community to share and review PCB designs.',
+})
 </script>
 
 

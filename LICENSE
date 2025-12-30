@@ -199,3 +199,23 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+Additional Notices for Circuit Scope
+------------------------------------
+
+The software source code in this repository is licensed under the Apache
+License, Version 2.0, as set out above. However, unless explicitly stated
+otherwise, the following assets are proprietary and are *not* licensed under
+the Apache License:
+
+- The "Circuit Scope" name and any associated product or service names.
+- Logos, wordmarks, icons, and other branding elements.
+- Visual design elements, including but not limited to layout compositions,
+    illustrations, marketing graphics, and unique UI styling.
+- Any other non-code assets (such as image files, fonts not otherwise
+    covered by their own licenses, and promotional copy) included in this
+    repository or on circuitscope.io.
+
+These proprietary assets may not be used, modified, or redistributed without
+prior written permission from the copyright holder, except as permitted by
+applicable law (for example, fair use).

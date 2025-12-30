@@ -67,6 +67,16 @@ const { data: previewData } = useAsyncData<ProjectPreviewResponse>(
 )
 
 const project = computed(() => projectData.value)
+
+watch(project, (val) => {
+    if (val) {
+        defineOgImageComponent('OgTemplate', {
+            heading: `Review: ${val.name}`,
+            description: val.description || 'Join the community review of this PCB design on Circuit Scope.',
+        })
+    }
+}, { immediate: true })
+
 const previews = computed(() => previewData.value)
 
 const schematics = computed(() => previews.value?.schematics ?? [])

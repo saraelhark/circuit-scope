@@ -14,6 +14,11 @@ useHead({
     title: "Dashboard - Circuit Scope",
 })
 
+defineOgImageComponent('OgTemplate', {
+    heading: 'Dashboard',
+    description: 'Manage your PCB projects and reviews on Circuit Scope.',
+})
+
 const { backendUser } = useBackendUser()
 const { listProjects, updateProject } = useProject()
 

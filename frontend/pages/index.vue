@@ -1,8 +1,23 @@
 <script setup lang="ts">
 import ProjectsList from "~/components/projects/ProjectsList.vue"
+import { useAppSeo } from "~/composables/useAppSeo"
 
-useHead({
-  title: "Circuit Scope - Home",
+useAppSeo({
+  title: "Circuit Scope",
+  description: "Publish your circuit board design and get reviews from the community, PCB experts, electrical engineers and self-taught makers — works with KiCad.",
+  path: "/",
+  schemaOrg: {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Circuit Scope",
+    url: "https://circuitscope.io/",
+    description: "Publish your circuit board design and get reviews from the community, PCB experts, electrical engineers and self-taught makers — works with KiCad.",
+  },
+})
+
+defineOgImageComponent('OgTemplate', {
+  heading: 'Circuit Scope',
+  description: 'Publish your circuit board design and get reviews from the community, PCB experts, electrical engineers and self-taught makers — works with KiCad.',
 })
 </script>
 

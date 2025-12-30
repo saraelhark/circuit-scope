@@ -138,4 +138,9 @@
 
 <script setup lang="ts">
 const lastUpdated = 'December 2025'
+
+defineOgImageComponent('OgTemplate', {
+    heading: 'Terms of Service',
+    description: 'Read the terms and conditions for using the Circuit Scope platform.',
+})
 </script>

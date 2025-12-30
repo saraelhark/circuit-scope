@@ -138,4 +138,9 @@
 
 <script setup lang="ts">
 const lastUpdated = 'December 2025'
+
+defineOgImageComponent('OgTemplate', {
+    heading: 'Privacy Policy',
+    description: 'Learn how Circuit Scope handles your personal data and protects your privacy.',
+})
 </script>

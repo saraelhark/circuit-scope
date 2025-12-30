@@ -18,6 +18,11 @@ useHead({
   title: "New project – Circuit Scope",
 })
 
+defineOgImageComponent('OgTemplate', {
+  heading: 'New Project',
+  description: 'Upload your KiCad project or board photos for community review.',
+})
+
 const {
   form,
   file,

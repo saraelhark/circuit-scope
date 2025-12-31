@@ -10,6 +10,12 @@ TARGET_DIR="/srv/circuitscope"
 
 echo "🚀 Starting deployment to $SSH_USER@$SSH_HOST..."
 
+# Default deploy timestamp if not provided
+if [ -z "${NUXT_PUBLIC_DEPLOY_LASTMOD}" ]; then
+  export NUXT_PUBLIC_DEPLOY_LASTMOD="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  echo "ℹ NUXT_PUBLIC_DEPLOY_LASTMOD not set; defaulting to ${NUXT_PUBLIC_DEPLOY_LASTMOD}"
+fi
+
 # 1. Validate required environment variables
 REQUIRED_VARS=(
   "ACME_EMAIL"

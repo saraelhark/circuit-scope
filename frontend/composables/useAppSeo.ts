@@ -12,8 +12,8 @@ export function useAppSeo(options: AppSeoOptions) {
     const config = useRuntimeConfig()
     const url = import.meta.client ? window.location.href : useRequestURL().href
 
-    const siteUrl = (config.public as any).siteUrl as string
-    const fullUrl = options.path ? new URL(options.path, siteUrl).toString() : url
+    const siteUrl = (config.public as any).siteUrl as string || 'https://circuitscope.io'
+    const fullUrl = options.path && siteUrl ? new URL(options.path, siteUrl).toString() : url
 
     useSeoMeta({
         title: options.title,

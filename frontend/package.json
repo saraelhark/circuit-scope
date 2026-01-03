@@ -21,7 +21,7 @@
     "@vueuse/core": "^14.0.0",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
-    "next-auth": "^4.21.1",
+    "next-auth": "4.21.1",
     "nuxt": "3.16.2",
     "nuxt-og-image": "^5.1.13",
     "postcss": "^8.5.1",

@@ -47,7 +47,7 @@ export default defineNuxtConfig({
     authSecret: '', // will be overridden by NUXT_AUTH_SECRET
     public: {
       apiBase: "/api/v1",
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL,
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://circuitscope.io',
       deployLastmod: process.env.NUXT_PUBLIC_DEPLOY_LASTMOD || new Date().toISOString(),
       posthogPublicKey: process.env.NUXT_PUBLIC_POSTHOG_PUBLIC_KEY,
       posthogHost: process.env.NUXT_PUBLIC_POSTHOG_HOST,

@@ -61,6 +61,46 @@ You can try the live site at: <https://circuitscope.io>
    docker-compose down
    ```
 
+## Running Tests
+
+Before submitting a PR, run the test suites locally to ensure everything passes.
+
+### Prerequisites
+
+- **Backend**: [uv](https://docs.astral.sh/uv/) (Python package manager)
+- **Frontend**: Node.js 20+
+
+### Run all tests
+
+```bash
+# Backend (lint + tests)
+./scripts/test-backend.sh
+
+# Frontend (lint + build)
+./scripts/test-frontend.sh
+```
+
+### Run individual checks
+
+**Backend:**
+
+```bash
+cd backend
+uv sync --extra dev
+uv run ruff check .         # Lint
+uv run ruff format --check . # Format check
+uv run pytest -v            # Tests
+```
+
+**Frontend:**
+
+```bash
+cd frontend
+npm ci --legacy-peer-deps
+npm run lint                # ESLint
+npm run build               # Build
+```
+
 ## License
 
 This project is licensed under the Apache License 2.0. See `LICENSE` for details.

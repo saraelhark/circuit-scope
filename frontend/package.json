@@ -11,7 +11,10 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "nuxt typecheck"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
@@ -40,6 +43,7 @@
     "@nuxt/eslint": "^1.2.0",
     "clsx": "^2.1.1",
     "eslint": "^9.22.0",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vue-tsc": "^2.2.0"
   }
 }

@@ -48,7 +48,7 @@ async def get_unread_count(session: AsyncSession, user_id: UUID) -> int:
     stmt = (
         select(func.count())  # pylint: disable=not-callable
         .select_from(Notification)
-        .where(Notification.user_id == user_id, Notification.is_read == False)
+        .where(Notification.user_id == user_id, Notification.is_read.is_(False))
     )
     result = await session.execute(stmt)
     return result.scalar_one()
@@ -73,7 +73,7 @@ async def mark_all_as_read(session: AsyncSession, user_id: UUID) -> None:
     """Mark all notifications as read for a user."""
     stmt = (
         update(Notification)
-        .where(Notification.user_id == user_id, Notification.is_read == False)
+        .where(Notification.user_id == user_id, Notification.is_read.is_(False))
         .values(is_read=True)
     )
     await session.execute(stmt)

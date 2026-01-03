@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import type { InputHTMLAttributes } from "vue"
-import { cn } from "~/lib/utils"
+import type { InputHTMLAttributes } from 'vue'
+import { cn } from '~/lib/utils'
 
 const props = withDefaults(
   defineProps<{
     modelValue?: string | number | null
-    type?: InputHTMLAttributes["type"]
-    class?: InputHTMLAttributes["class"]
+    type?: InputHTMLAttributes['type']
+    class?: InputHTMLAttributes['class']
   }>(),
   {
-    type: "text",
+    type: 'text',
   },
 )
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: string | number | null): void
+  (e: 'update:modelValue', value: string | number | null): void
 }>()
 
 function onInput(event: Event) {
   const target = event.target as HTMLInputElement
-  emit("update:modelValue", target.value)
+  emit('update:modelValue', target.value)
 }
 </script>
 
@@ -33,5 +33,5 @@ function onInput(event: Event) {
     )"
     v-bind="$attrs"
     @input="onInput"
-  />
+  >
 </template>

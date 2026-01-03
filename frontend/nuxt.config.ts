@@ -1,27 +1,20 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2024-04-03',
 
   modules: [
     '@sidebase/nuxt-auth',
     ['nuxt-og-image', {
       inline: true,
-      component: 'OgTemplate'
+      component: 'OgTemplate',
     }],
   ],
 
-  site: {
-    url: 'https://circuitscope.io',
-    name: 'Circuit Scope'
-  },
-
-  auth: {
-    isEnabled: true,
-    disableServerSideAuth: false,
-    provider: {
-      type: 'authjs'
+  components: [
+    {
+      path: '~/components',
+      extensions: ['vue'],
     },
-  },
+  ],
 
   app: {
     head: {
@@ -36,17 +29,16 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
-  postcss: {
-    plugins: {
-      tailwindcss: {},
-      autoprefixer: {},
-    },
+
+  site: {
+    url: 'https://circuitscope.io',
+    name: 'Circuit Scope',
   },
 
   runtimeConfig: {
     authSecret: '', // will be overridden by NUXT_AUTH_SECRET
     public: {
-      apiBase: "/api/v1",
+      apiBase: '/api/v1',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://circuitscope.io',
       deployLastmod: process.env.NUXT_PUBLIC_DEPLOY_LASTMOD || new Date().toISOString(),
       posthogPublicKey: process.env.NUXT_PUBLIC_POSTHOG_PUBLIC_KEY,
@@ -63,11 +55,12 @@ export default defineNuxtConfig({
       githubClientSecret: '',
     },
   },
+  compatibilityDate: '2024-04-03',
 
   vite: {
     build: {
       minify: true,
-      sourcemap: process.env.NODE_ENV !== "production",
+      sourcemap: process.env.NODE_ENV !== 'production',
       rollupOptions: {
         output: {
           manualChunks: undefined,
@@ -75,15 +68,22 @@ export default defineNuxtConfig({
       },
     },
     esbuild: {
-      drop: process.env.NODE_ENV === "production" ? ["console"] : [],
+      drop: process.env.NODE_ENV === 'production' ? ['console'] : [],
+    },
+  },
+  postcss: {
+    plugins: {
+      tailwindcss: {},
+      autoprefixer: {},
     },
   },
 
-  components: [
-    {
-      path: '~/components',
-      extensions: ['vue'],
+  auth: {
+    isEnabled: true,
+    disableServerSideAuth: false,
+    provider: {
+      type: 'authjs',
     },
-  ],
+  },
 
 })

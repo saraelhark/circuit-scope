@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
-import * as THREE from "three"
-import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import * as THREE from 'three'
+import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 const props = withDefaults(
   defineProps<{
@@ -17,9 +17,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: "loaded"): void
-  (e: "error", message: string): void
-  (e: "bounds-change", rect: DOMRect): void
+  (e: 'loaded'): void
+  (e: 'error', message: string): void
+  (e: 'bounds-change', rect: DOMRect): void
 }>()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -33,7 +33,7 @@ let controls: OrbitControls | null = null
 let frameId: number | null = null
 let currentModel: THREE.Object3D | null = null
 let resizeObserver: ResizeObserver | null = null
-let currentOrientation: "front" | "back" = "front"
+let currentOrientation: 'front' | 'back' = 'front'
 let cameraDistance = 6
 
 function initScene() {
@@ -47,7 +47,7 @@ function initScene() {
   containerRef.value.appendChild(renderer.domElement)
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color("#05060a")
+  scene.background = new THREE.Color('#05060a')
 
   camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100)
   camera.position.set(0, 0, cameraDistance)
@@ -106,8 +106,9 @@ function disposeModel() {
       }
       const material = mesh.material as THREE.Material | THREE.Material[] | undefined
       if (Array.isArray(material)) {
-        material.forEach((mat) => mat.dispose())
-      } else {
+        material.forEach(mat => mat.dispose())
+      }
+      else {
         material?.dispose()
       }
     })
@@ -186,15 +187,15 @@ function loadModel(url?: string) {
       setOrientation(currentOrientation)
 
       isLoading.value = false
-      emit("loaded")
+      emit('loaded')
       nextTick(updateBounds)
     },
     undefined,
     (error: unknown) => {
-      console.error("Failed to load GLB", error)
+      console.error('Failed to load GLB', error)
       isLoading.value = false
-      errorMessage.value = "Failed to load 3D preview"
-      emit("error", errorMessage.value)
+      errorMessage.value = 'Failed to load 3D preview'
+      emit('error', errorMessage.value)
     },
   )
 }
@@ -212,12 +213,12 @@ function updateSize() {
 function updateBounds() {
   if (!containerRef.value) return
   const rect = containerRef.value.getBoundingClientRect()
-  emit("bounds-change", rect)
+  emit('bounds-change', rect)
 }
 
-function setOrientation(target: "front" | "back") {
+function setOrientation(target: 'front' | 'back') {
   if (!camera || !controls) return
-  const z = target === "front" ? cameraDistance : -cameraDistance
+  const z = target === 'front' ? cameraDistance : -cameraDistance
   camera.position.set(0, 0, z)
   controls.target.set(0, 0, 0)
   controls.update()
@@ -225,7 +226,7 @@ function setOrientation(target: "front" | "back") {
 }
 
 function toggleFlip() {
-  setOrientation(currentOrientation === "front" ? "back" : "front")
+  setOrientation(currentOrientation === 'front' ? 'back' : 'front')
 }
 
 defineExpose({
@@ -267,16 +268,26 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="relative h-full w-full overflow-hidden rounded-lg bg-[#05060a]">
-    <div v-if="!modelUrl" class="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+  <div
+    ref="containerRef"
+    class="relative h-full w-full overflow-hidden rounded-lg bg-[#05060a]"
+  >
+    <div
+      v-if="!modelUrl"
+      class="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground"
+    >
       No 3D model preview available.
     </div>
-    <div v-else-if="errorMessage"
-      class="absolute inset-0 flex items-center justify-center bg-background/70 text-sm text-destructive">
+    <div
+      v-else-if="errorMessage"
+      class="absolute inset-0 flex items-center justify-center bg-background/70 text-sm text-destructive"
+    >
       {{ errorMessage }}
     </div>
-    <div v-else-if="isLoading"
-      class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+    <div
+      v-else-if="isLoading"
+      class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground"
+    >
       Loading 3D preview…
     </div>
   </div>

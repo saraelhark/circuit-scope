@@ -5,7 +5,7 @@ import type {
   ThreadComment,
   ThreadCommentCreatePayload,
   ThreadResolutionUpdatePayload,
-} from "~/types/api/commentThreads"
+} from '~/types/api/commentThreads'
 
 export function useCommentThreads() {
   const {
@@ -17,7 +17,7 @@ export function useCommentThreads() {
 
   const createThread = (projectId: string, payload: CommentThreadCreatePayload) =>
     $fetch<CommentThread>(`${apiBase}/projects/${projectId}/threads/`, {
-      method: "POST",
+      method: 'POST',
       body: payload,
     })
 
@@ -27,7 +27,7 @@ export function useCommentThreads() {
     payload: ThreadCommentCreatePayload,
   ) =>
     $fetch<ThreadComment>(`${apiBase}/projects/${projectId}/threads/${threadId}/comments`, {
-      method: "POST",
+      method: 'POST',
       body: payload,
     })
 
@@ -37,20 +37,20 @@ export function useCommentThreads() {
     payload: ThreadResolutionUpdatePayload,
   ) =>
     $fetch<CommentThread>(`${apiBase}/projects/${projectId}/threads/${threadId}/resolution`, {
-      method: "PATCH",
+      method: 'PATCH',
       body: payload,
     })
 
   const deleteThread = (projectId: string, threadId: string) =>
     $fetch<void>(`${apiBase}/projects/${projectId}/threads/${threadId}`, {
-      method: "DELETE",
+      method: 'DELETE',
     })
 
   const deleteComment = (projectId: string, threadId: string, commentId: string) =>
     $fetch<void>(
       `${apiBase}/projects/${projectId}/threads/${threadId}/comments/${commentId}`,
       {
-        method: "DELETE",
+        method: 'DELETE',
       },
     )
 

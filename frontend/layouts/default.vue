@@ -16,8 +16,14 @@ useBackendUser()
           {{ new Date().getFullYear() }} Circuit Scope. All rights reserved.
         </div>
         <div class="flex flex-col items-end gap-1">
-          <NuxtLink to="/privacy" class="hover:text-white">Privacy Policy</NuxtLink>
-          <NuxtLink to="/tos" class="hover:text-white">Terms of Service</NuxtLink>
+          <NuxtLink
+            to="/privacy"
+            class="hover:text-white"
+          >Privacy Policy</NuxtLink>
+          <NuxtLink
+            to="/tos"
+            class="hover:text-white"
+          >Terms of Service</NuxtLink>
         </div>
       </div>
     </footer>

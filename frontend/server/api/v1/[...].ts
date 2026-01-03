@@ -36,7 +36,9 @@ export default defineEventHandler(async (event) => {
       if (backendUser && backendUser.id) {
         headers['x-user-id'] = backendUser.id
       }
-    } catch {
+    }
+    catch {
+      // Session retrieval failed - continue without user context
     }
   }
 

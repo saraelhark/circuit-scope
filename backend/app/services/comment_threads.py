@@ -36,9 +36,7 @@ async def list_threads(
     query: Select[tuple[CommentThread]] = (
         select(CommentThread)
         .where(CommentThread.project_id == project_id)
-        .options(
-            selectinload(CommentThread.comments).selectinload(ThreadComment.author)
-        )
+        .options(selectinload(CommentThread.comments).selectinload(ThreadComment.author))
         .order_by(CommentThread.created_at.asc())
     )
 
@@ -92,9 +90,7 @@ async def create_thread(
 
     result = await session.execute(
         select(CommentThread)
-        .options(
-            selectinload(CommentThread.comments).selectinload(ThreadComment.author)
-        )
+        .options(selectinload(CommentThread.comments).selectinload(ThreadComment.author))
         .where(CommentThread.id == thread.id)
     )
     thread_with_comments = result.scalar_one()
@@ -248,9 +244,7 @@ async def delete_comment(
 
     comment = await session.get(ThreadComment, comment_id)
     if comment is None or comment.thread_id != thread.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
 
     await session.delete(comment)
     await session.commit()
@@ -263,24 +257,19 @@ async def _get_thread(
 ) -> CommentThread:
     query = (
         select(CommentThread)
-        .options(
-            selectinload(CommentThread.comments).selectinload(ThreadComment.author)
-        )
+        .options(selectinload(CommentThread.comments).selectinload(ThreadComment.author))
         .where(CommentThread.project_id == project_id, CommentThread.id == thread_id)
     )
     result = await session.execute(query)
     thread = result.scalar_one_or_none()
     if thread is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
     return thread
 
 
 def _serialize_thread(thread: CommentThread) -> CommentThreadResponse:
     comment_models = [
-        ThreadCommentResponse.model_validate(c, from_attributes=True)
-        for c in thread.comments
+        ThreadCommentResponse.model_validate(c, from_attributes=True) for c in thread.comments
     ]
 
     annotation: ThreadAnnotation | None = None

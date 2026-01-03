@@ -65,9 +65,7 @@ def grid_dimensions(count: int) -> tuple[int, int]:
     return rows, columns
 
 
-def compose_svg_grid(
-    svgs: list[Path], destination: Path, *, padding_ratio: float = 0.05
-) -> Path:
+def compose_svg_grid(svgs: list[Path], destination: Path, *, padding_ratio: float = 0.05) -> Path:
     """Combine multiple SVG sheets into a single grid-based SVG."""
     trees: list[ET.ElementTree] = []
     dimensions: list[SvgDimensions] = []

@@ -24,9 +24,7 @@ class Settings(BaseSettings):
     cors_allow_methods: list[str] = Field(default_factory=lambda: ["*"])
     cors_allow_headers: list[str] = Field(default_factory=lambda: ["*"])
 
-    storage_backend: str = Field(
-        default="local", description="Selected storage backend identifier"
-    )
+    storage_backend: str = Field(default="local", description="Selected storage backend identifier")
     storage_local_base_path: Path = Field(default_factory=lambda: Path("./var/storage"))
 
     frontend_secret_key: str = Field(
@@ -61,9 +59,7 @@ class Settings(BaseSettings):
             return value
         return Path(value).expanduser().resolve()
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 @lru_cache

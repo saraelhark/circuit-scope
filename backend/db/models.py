@@ -43,9 +43,7 @@ class TimestampMixin:
 class User(TimestampMixin, Base):
     __tablename__ = "users"
 
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     email: Mapped[str | None] = mapped_column(String, unique=True)
     display_name: Mapped[str | None] = mapped_column(String)
     avatar_url: Mapped[str | None] = mapped_column(String)
@@ -62,9 +60,7 @@ class User(TimestampMixin, Base):
         foreign_keys="CommentThread.resolved_by_id",
         viewonly=True,
     )
-    thread_comments: Mapped[list["ThreadComment"]] = relationship(
-        back_populates="author"
-    )
+    thread_comments: Mapped[list["ThreadComment"]] = relationship(back_populates="author")
     notifications: Mapped[list["Notification"]] = relationship(
         back_populates="user", foreign_keys="Notification.user_id"
     )
@@ -77,9 +73,7 @@ class Project(TimestampMixin, Base):
         Index("idx_projects_public", "is_public"),
     )
 
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     owner_id: Mapped[UUIDType] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -94,19 +88,13 @@ class Project(TimestampMixin, Base):
     source_type: Mapped[str] = mapped_column(String, default="kicad", nullable=False)
     thumbnail_kind: Mapped[str | None] = mapped_column(String)
     view_count: Mapped[int] = mapped_column(default=0, nullable=False)
-    processing_status: Mapped[str] = mapped_column(
-        String, default="queued", nullable=False
-    )
+    processing_status: Mapped[str] = mapped_column(String, default="queued", nullable=False)
     processing_error: Mapped[str | None] = mapped_column(Text)
 
     owner: Mapped[User] = relationship(back_populates="projects")
     reviews: Mapped[list["Review"]] = relationship(back_populates="project")
-    comment_threads: Mapped[list["CommentThread"]] = relationship(
-        back_populates="project"
-    )
-    analytics_events: Mapped[list["AnalyticsEvent"]] = relationship(
-        back_populates="project"
-    )
+    comment_threads: Mapped[list["CommentThread"]] = relationship(back_populates="project")
+    analytics_events: Mapped[list["AnalyticsEvent"]] = relationship(back_populates="project")
     files: Mapped[list["ProjectFile"]] = relationship(back_populates="project")
     notifications: Mapped[list["Notification"]] = relationship(back_populates="project")
 
@@ -125,9 +113,7 @@ class Review(TimestampMixin, Base):
     __tablename__ = "reviews"
     __table_args__ = (Index("idx_reviews_project", "project_id"),)
 
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUIDType] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
@@ -152,9 +138,7 @@ class AnalyticsEvent(Base):
         Index("idx_analytics_event", "event_type"),
     )
 
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUIDType] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
@@ -177,9 +161,7 @@ class ProjectFile(TimestampMixin, Base):
         Index("idx_project_files_project", "project_id"),
     )
 
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUIDType] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
@@ -199,9 +181,7 @@ class CommentThread(TimestampMixin, Base):
         Index("idx_comment_threads_view", "project_id", "view_id"),
     )
 
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUIDType] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
@@ -239,9 +219,7 @@ class ThreadComment(TimestampMixin, Base):
     __tablename__ = "thread_comments"
     __table_args__ = (Index("idx_thread_comments_thread", "thread_id"),)
 
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     thread_id: Mapped[UUIDType] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("comment_threads.id", ondelete="CASCADE"),
@@ -276,9 +254,7 @@ class Notification(TimestampMixin, Base):
         Index("idx_notifications_unread", "user_id", "is_read"),
     )
 
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4
-    )
+    id: Mapped[UUIDType] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUIDType] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -299,9 +275,7 @@ class Notification(TimestampMixin, Base):
     message: Mapped[str] = mapped_column(String, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    user: Mapped[User] = relationship(
-        back_populates="notifications", foreign_keys=[user_id]
-    )
+    user: Mapped[User] = relationship(back_populates="notifications", foreign_keys=[user_id])
     actor: Mapped[User | None] = relationship(foreign_keys=[actor_id])
     project: Mapped[Project] = relationship(back_populates="notifications")
     thread: Mapped[CommentThread | None] = relationship(back_populates="notifications")

@@ -64,9 +64,7 @@ async def process_project_archive(
             with zipfile.ZipFile(archive_path) as zip_file:
                 _safe_extract(zip_file, extraction_root)
         except (zipfile.BadZipFile, OSError):
-            logger.exception(
-                "Failed to extract KiCad archive for project %s", project_id
-            )
+            logger.exception("Failed to extract KiCad archive for project %s", project_id)
             return
 
         for directory in (
@@ -100,9 +98,7 @@ async def process_project_archive(
                     extraction_root,
                 )
             except Exception:
-                logger.exception(
-                    "Schematic rendering failed for project %s", project_id
-                )
+                logger.exception("Schematic rendering failed for project %s", project_id)
 
         if board_file is None:
             logger.warning("No PCB file found for project %s", project_id)
@@ -112,18 +108,14 @@ async def process_project_archive(
                 if layout_entries:
                     index["layouts"].extend(layout_entries)
             except Exception:
-                logger.exception(
-                    "Board SVG rendering failed for project %s", project_id
-                )
+                logger.exception("Board SVG rendering failed for project %s", project_id)
 
             try:
                 model_entry = _render_board_glb(board_file, models_root)
                 if model_entry:
                     index["models"].append(model_entry)
             except Exception:
-                logger.exception(
-                    "Board GLB rendering failed for project %s", project_id
-                )
+                logger.exception("Board GLB rendering failed for project %s", project_id)
 
             try:
                 render_entry = _render_board_3d_render(board_file, photos_root)
@@ -242,9 +234,7 @@ def _render_schematic_bundle(
         try:
             compose_svg_grid(copied_svg_paths, composed_path)
         except Exception:
-            logger.exception(
-                "Failed to compose schematic grid; falling back to first sheet"
-            )
+            logger.exception("Failed to compose schematic grid; falling back to first sheet")
         else:
             composed_entry = {
                 "id": f"{slugify(primary_source.stem) or 'schematics'}-grid",
@@ -442,9 +432,7 @@ def _run_cli(command: list[str]) -> None:
         raise RuntimeError(f"kicad-cli exited with code {exc.returncode}") from exc
 
 
-async def _write_index(
-    storage: StorageService, project_id: UUID, index: dict[str, Any]
-) -> None:
+async def _write_index(storage: StorageService, project_id: UUID, index: dict[str, Any]) -> None:
     """Persist the preview index JSON file."""
 
     try:
@@ -475,14 +463,10 @@ def _read_project_metadata(extraction_root: Path) -> dict[str, Any]:
     return {
         "source": str(project_file.relative_to(extraction_root)),
         "title": (
-            title_block.get("title")
-            if isinstance(title_block, dict)
-            else metadata.get("title")
+            title_block.get("title") if isinstance(title_block, dict) else metadata.get("title")
         ),
         "company": (
-            title_block.get("company")
-            if isinstance(title_block, dict)
-            else metadata.get("company")
+            title_block.get("company") if isinstance(title_block, dict) else metadata.get("company")
         ),
         "revision": (
             title_block.get("revision")
@@ -490,16 +474,12 @@ def _read_project_metadata(extraction_root: Path) -> dict[str, Any]:
             else metadata.get("revision")
         ),
         "date": (
-            title_block.get("date")
-            if isinstance(title_block, dict)
-            else metadata.get("date")
+            title_block.get("date") if isinstance(title_block, dict) else metadata.get("date")
         ),
     }
 
 
-async def load_preview_index(
-    storage: StorageService, project_id: UUID
-) -> dict[str, Any]:
+async def load_preview_index(storage: StorageService, project_id: UUID) -> dict[str, Any]:
     """Load the stored preview index for a project."""
 
     index_storage_path = _preview_index_storage_path(project_id)
@@ -518,9 +498,7 @@ async def load_preview_index(
         }
 
 
-async def list_previews_summary(
-    storage: StorageService, project_id: UUID
-) -> dict[str, Any]:
+async def list_previews_summary(storage: StorageService, project_id: UUID) -> dict[str, Any]:
     """Return a condensed view of available previews for listings."""
 
     index = await load_preview_index(storage, project_id)

@@ -12,9 +12,7 @@ api_router.include_router(health.router, tags=["health"])
 # Protected routes (require frontend token)
 protected_deps = [Depends(verify_frontend_token)]
 
-api_router.include_router(
-    auth.router, prefix="/auth", tags=["auth"], dependencies=protected_deps
-)
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"], dependencies=protected_deps)
 api_router.include_router(
     notifications.router,
     prefix="/notifications",

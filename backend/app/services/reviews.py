@@ -49,19 +49,14 @@ async def list_reviews(
     await ensure_project_exists(session, project_id)
 
     query: Select[tuple[Review]] = (
-        select(Review)
-        .where(Review.project_id == project_id)
-        .order_by(Review.created_at.asc())
+        select(Review).where(Review.project_id == project_id).order_by(Review.created_at.asc())
     )
     result = await session.execute(query)
     reviews = result.scalars().all()
 
     return ReviewListResponse(
         project_id=project_id,
-        items=[
-            ReviewResponse.model_validate(review, from_attributes=True)
-            for review in reviews
-        ],
+        items=[ReviewResponse.model_validate(review, from_attributes=True) for review in reviews],
     )
 
 
@@ -92,16 +87,10 @@ async def delete_review(
     await session.commit()
 
 
-async def _get_review(
-    session: AsyncSession, project_id: UUID, review_id: UUID
-) -> Review:
-    query = select(Review).where(
-        Review.id == review_id, Review.project_id == project_id
-    )
+async def _get_review(session: AsyncSession, project_id: UUID, review_id: UUID) -> Review:
+    query = select(Review).where(Review.id == review_id, Review.project_id == project_id)
     result = await session.execute(query)
     review = result.scalar_one_or_none()
     if review is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Review not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
     return review

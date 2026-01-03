@@ -79,9 +79,7 @@ async def run_project_processing_task(
                     project.processing_error = str(exc)
                     await session.commit()
             except Exception:
-                logger.exception(
-                    "Failed to update error status for project %s", project_id
-                )
+                logger.exception("Failed to update error status for project %s", project_id)
         finally:
             # Cleanup the temporary ZIP file
             try:
@@ -246,8 +244,7 @@ async def list_projects(
 
     return ProjectListResponse(
         items=[
-            ProjectResponse.model_validate(project, from_attributes=True)
-            for project in projects
+            ProjectResponse.model_validate(project, from_attributes=True) for project in projects
         ],
         total=total,
         page=page,
@@ -276,9 +273,7 @@ async def update_project(
             detail="You are not allowed to modify this project",
         )
 
-    for field, value in payload.model_dump(
-        exclude_unset=True, exclude_none=True
-    ).items():
+    for field, value in payload.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(project, field, value)
 
     await session.commit()
@@ -322,9 +317,7 @@ async def get_project_orm_model(session: AsyncSession, project_id: UUID) -> Proj
     )
     project = result.scalar_one_or_none()
     if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     return project
 
 
@@ -333,6 +326,4 @@ async def ensure_project_exists(session: AsyncSession, project_id: UUID) -> None
     query = select(Project.id).where(Project.id == project_id)
     result = await session.execute(query)
     if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")

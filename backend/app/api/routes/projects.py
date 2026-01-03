@@ -61,9 +61,7 @@ _MEDIA_TYPES = {
 }
 
 
-@router.post(
-    "/", response_model=ProjectUploadResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/", response_model=ProjectUploadResponse, status_code=status.HTTP_201_CREATED)
 async def create_project_endpoint(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -89,12 +87,8 @@ async def create_project_endpoint(
 
     # Create project row; KiCad projects may include a ZIP archive, image-only
     # projects skip the archive pipeline entirely.
-    effective_upload: UploadFile | None = (
-        upload if payload.source_type == "kicad" else None
-    )
-    project_response, upload_path = await create_project(
-        session, payload, effective_upload
-    )
+    effective_upload: UploadFile | None = upload if payload.source_type == "kicad" else None
+    project_response, upload_path = await create_project(session, payload, effective_upload)
 
     upload_result: dict[str, Any] | None = None
 

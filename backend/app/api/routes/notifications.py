@@ -51,9 +51,7 @@ async def mark_notification_read(
     """Mark a notification as read."""
     notification = await mark_as_read(session, notification_id, current_user.id)
     if not notification:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
     return notification
 
 

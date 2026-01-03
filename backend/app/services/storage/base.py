@@ -20,9 +20,7 @@ class StorageFile(Protocol):
     def close(self) -> None:  # pragma: no cover - protocol definition
         ...
 
-    def seek(
-        self, offset: int, whence: int = 0
-    ) -> int:  # pragma: no cover - protocol definition
+    def seek(self, offset: int, whence: int = 0) -> int:  # pragma: no cover - protocol definition
         ...
 
 

@@ -37,12 +37,9 @@ async def list_project_reviews(
 async def create_project_review(
     project_id: UUID,
     payload: ReviewCreate,
-    x_reviewer_id: UUID | None = Header(
-        default=None, description="Temporary reviewer identifier"
-    ),
+    x_reviewer_id: UUID | None = Header(default=None, description="Temporary reviewer identifier"),
     session: AsyncSession = Depends(get_db_session),
 ) -> ReviewResponse:
-
     reviewer_id = payload.reviewer_id
     if reviewer_id is None:
         if x_reviewer_id is None:

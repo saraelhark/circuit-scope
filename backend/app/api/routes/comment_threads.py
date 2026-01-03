@@ -36,9 +36,7 @@ async def list_comment_threads(
     return await list_threads(session, project_id=project_id)
 
 
-@router.post(
-    "/", response_model=CommentThreadResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/", response_model=CommentThreadResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def create_comment_thread(
     request: Request,

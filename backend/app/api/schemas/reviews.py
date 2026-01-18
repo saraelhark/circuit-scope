@@ -16,14 +16,7 @@ class ReviewBase(BaseModel):
 
 
 class ReviewCreate(ReviewBase):
-    reviewer_id: UUID | None = None
-
-
-class ReviewUpdate(BaseModel):
-    content: str | None = Field(default=None, min_length=1, max_length=5000)
-    target_file: str | None = Field(default=None, max_length=255)
-    target_component: str | None = Field(default=None, max_length=255)
-    is_private: bool | None = None
+    pass
 
 
 class ReviewResponse(BaseModel):
@@ -51,5 +44,4 @@ __all__ = [
     "ReviewCreate",
     "ReviewListResponse",
     "ReviewResponse",
-    "ReviewUpdate",
 ]

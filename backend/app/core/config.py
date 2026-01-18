@@ -21,8 +21,20 @@ class Settings(BaseSettings):
 
     cors_origins: list[AnyHttpUrl] = Field(description="Allowed CORS origins")
     cors_allow_credentials: bool = True
-    cors_allow_methods: list[str] = Field(default_factory=lambda: ["*"])
-    cors_allow_headers: list[str] = Field(default_factory=lambda: ["*"])
+    cors_allow_methods: list[str] = Field(
+        default_factory=lambda: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    )
+    cors_allow_headers: list[str] = Field(
+        default_factory=lambda: [
+            "Content-Type",
+            "Authorization",
+            "X-Frontend-Token",
+            "X-User-Id",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+        ]
+    )
 
     storage_backend: str = Field(default="local", description="Selected storage backend identifier")
     storage_local_base_path: Path = Field(default_factory=lambda: Path("./var/storage"))

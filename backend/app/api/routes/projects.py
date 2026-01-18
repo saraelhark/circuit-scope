@@ -23,6 +23,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session, get_storage_service, get_current_user
+from app.core.config import settings
 from app.api.schemas.projects import (
     ProjectCreate,
     ProjectListResponse,
@@ -150,7 +151,14 @@ async def get_project_endpoint(
         # Track the view if not already viewed in this session/window
         await increment_project_view(session, project_id)
         # Set cookie to prevent multiple counts (valid for 24 hours)
-        response.set_cookie(key=cookie_name, value="true", max_age=86400)
+        response.set_cookie(
+            key=cookie_name,
+            value="true",
+            max_age=86400,
+            httponly=True,
+            samesite="lax",
+            secure=not settings.debug,  # HTTPS only in production
+        )
 
     return await get_project(session, project_id)
 

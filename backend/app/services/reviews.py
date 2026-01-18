@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +11,6 @@ from app.api.schemas.reviews import (
     ReviewCreate,
     ReviewListResponse,
     ReviewResponse,
-    ReviewUpdate,
 )
 from app.services.projects import ensure_project_exists
 from db.models import Review
@@ -22,12 +20,21 @@ async def create_review(
     session: AsyncSession,
     project_id: UUID,
     payload: ReviewCreate,
+    reviewer_id: UUID,
 ) -> ReviewResponse:
+    """Create a review for a project.
+
+    Args:
+        session: Database session.
+        project_id: ID of the project to review.
+        payload: Review content and metadata.
+        reviewer_id: ID of the authenticated user creating the review.
+    """
     await ensure_project_exists(session, project_id)
 
     review = Review(
         project_id=project_id,
-        reviewer_id=payload.reviewer_id,
+        reviewer_id=reviewer_id,
         content=payload.content,
         target_file=payload.target_file,
         target_component=payload.target_component,
@@ -58,39 +65,3 @@ async def list_reviews(
         project_id=project_id,
         items=[ReviewResponse.model_validate(review, from_attributes=True) for review in reviews],
     )
-
-
-async def update_review(
-    session: AsyncSession,
-    project_id: UUID,
-    review_id: UUID,
-    payload: ReviewUpdate,
-) -> ReviewResponse:
-    review = await _get_review(session, project_id, review_id)
-
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(review, field, value)
-
-    await session.commit()
-    await session.refresh(review)
-
-    return ReviewResponse.model_validate(review, from_attributes=True)
-
-
-async def delete_review(
-    session: AsyncSession,
-    project_id: UUID,
-    review_id: UUID,
-) -> None:
-    review = await _get_review(session, project_id, review_id)
-    await session.delete(review)
-    await session.commit()
-
-
-async def _get_review(session: AsyncSession, project_id: UUID, review_id: UUID) -> Review:
-    query = select(Review).where(Review.id == review_id, Review.project_id == project_id)
-    result = await session.execute(query)
-    review = result.scalar_one_or_none()
-    if review is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
-    return review

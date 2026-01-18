@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import Depends, Request, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import verify_frontend_token
 from app.services.storage.base import StorageService
 from db.sessions import get_session
 from db.models import User
@@ -20,8 +21,13 @@ async def get_db_session(session: AsyncSession = Depends(get_session)) -> AsyncS
 async def get_current_user(
     x_user_id: str | None = Header(default=None),
     session: AsyncSession = Depends(get_db_session),
+    _frontend_verified: None = Depends(verify_frontend_token),
 ) -> User:
-    """Get the current user from the X-User-Id header."""
+    """Get the current user from the X-User-Id header.
+
+    Security: Only trusts X-User-Id when X-Frontend-Token is verified.
+    This prevents clients from spoofing user IDs without the frontend secret.
+    """
     if not x_user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User ID header missing"

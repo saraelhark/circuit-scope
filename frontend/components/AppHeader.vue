@@ -95,7 +95,7 @@ async function markAsRead(notification: any) {
       await navigateTo(`/projects/${notification.project_id}/review?thread=${notification.thread_id}`)
     }
     else {
-      await navigateTo(`/projects/${notification.project_id}`)
+      await navigateTo(`/projects/${notification.project_id}/review`)
     }
   }
 }

@@ -25,7 +25,7 @@ function formattedDescription(description: string | null) {
 
 <template>
   <NuxtLink
-    :to="`/projects/${project.id}`"
+    :to="`/projects/${project.id}/review`"
     class="group flex flex-col gap-4 rounded-[8px] border-4 border-white bg-cs-light-green p-4 transition-all hover:brightness-105 sm:flex-row text-white shadow-sm"
   >
     <div class="shrink-0 sm:w-32 md:w-40">

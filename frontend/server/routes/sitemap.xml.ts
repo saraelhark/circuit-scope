@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
       })
 
       projectPaths = (data.items || []).map(p => ({
-        loc: new URL(`/projects/${p.id}`, siteUrl).toString(),
+        loc: new URL(`/projects/${p.id}/review`, siteUrl).toString(),
         // Use the project's last activity timestamp as lastmod
         lastmod: p.updated_at || undefined,
       }))

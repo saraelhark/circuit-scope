@@ -141,9 +141,16 @@ watch(
   { immediate: true },
 )
 
+const naturalWidth = ref(0)
+const naturalHeight = ref(0)
+const hasInitializedView = ref(false)
+
 watch(activeViewId, (val) => {
   if (!val) return
   emit('viewChange', val)
+  naturalWidth.value = 0
+  naturalHeight.value = 0
+  hasInitializedView.value = false
   resetView()
 })
 
@@ -151,20 +158,82 @@ watch(activeViewId, (val) => {
 
 function resetView() {
   resetTranslate()
-  const initialZoom = computeInitialZoom()
-  setZoom(initialZoom)
-  nextTick(() => updateAssetBounds())
+  // First set zoom to 1 to get proper baseline measurements
+  setZoom(1)
+  nextTick(() => {
+    const initialZoom = computeInitialZoom()
+    setZoom(initialZoom)
+    nextTick(() => updateAssetBounds())
+  })
 }
 
 function computeInitialZoom() {
-  if (!contentRef.value || !imageRef.value) return 1
+  if (!contentRef.value) return 1
+
   const viewport = contentRef.value.getBoundingClientRect()
-  const natW = imageRef.value.naturalWidth || imageRef.value.width
-  const natH = imageRef.value.naturalHeight || imageRef.value.height
-  if (!natW || !natH) return 1
-  const scale = Math.min((viewport.width * 0.9) / natW, (viewport.height * 0.9) / natH)
-  const clamped = Math.min(6, Math.max(0.25, scale))
-  return Number(clamped.toFixed(2))
+  if (viewport.width === 0 || viewport.height === 0) return 1
+
+  // If image is rendered, use its actual displayed size (after CSS constraints)
+  // This accounts for max-h-[70vh] max-w-[80vw] CSS constraints
+  if (imageRef.value) {
+    const imgRect = imageRef.value.getBoundingClientRect()
+    // Since zoom is set to 1 before this runs, imgRect gives us the base size
+    const currentZoom = zoom.value || 1
+    const baseW = imgRect.width / currentZoom
+    const baseH = imgRect.height / currentZoom
+
+    if (baseW > 0 && baseH > 0) {
+      // Account for toolbar at top (~60px) and some padding
+      const availableHeight = viewport.height - 80
+      const availableWidth = viewport.width - 40
+
+      // Use 1.15x multiplier to fill more of the screen (ok if slightly cut off)
+      const scaleX = (availableWidth * 1.15) / baseW
+      const scaleY = (availableHeight * 1.15) / baseH
+      const scale = Math.min(scaleX, scaleY)
+      return Math.min(20, Math.max(0.5, Number(scale.toFixed(2))))
+    }
+  }
+
+  // Fallback: use natural dimensions with CSS constraint simulation
+  const natW = naturalWidth.value || 800
+  const natH = naturalHeight.value || 600
+
+  if (natW === 0 || natH === 0) return 1
+
+  // Simulate CSS constraints: max-w-[80vw] max-h-[70vh]
+  const maxCssW = viewport.width * 0.8
+  const maxCssH = viewport.height * 0.7
+  const imageAspect = natW / natH
+
+  let constrainedW: number, constrainedH: number
+  if (natW <= maxCssW && natH <= maxCssH) {
+    constrainedW = natW
+    constrainedH = natH
+  }
+  else {
+    const wForMaxW = maxCssW
+    const hForMaxW = maxCssW / imageAspect
+    const hForMaxH = maxCssH
+    const wForMaxH = maxCssH * imageAspect
+
+    if (hForMaxW <= maxCssH) {
+      constrainedW = wForMaxW
+      constrainedH = hForMaxW
+    }
+    else {
+      constrainedW = wForMaxH
+      constrainedH = hForMaxH
+    }
+  }
+
+  const availableHeight = viewport.height - 80
+  const availableWidth = viewport.width - 40
+  // Use 1.15x multiplier to fill more of the screen (ok if slightly cut off)
+  const scaleX = (availableWidth * 1.15) / constrainedW
+  const scaleY = (availableHeight * 1.15) / constrainedH
+  const scale = Math.min(scaleX, scaleY)
+  return Math.min(20, Math.max(0.5, Number(scale.toFixed(2))))
 }
 
 function handlePointerUp(event: PointerEvent) {
@@ -241,8 +310,15 @@ function updateAssetBounds() {
 }
 
 function handleImageLoad() {
-  zoom.value = computeInitialZoom()
-  nextTick(() => updateAssetBounds())
+  if (imageRef.value) {
+    naturalWidth.value = imageRef.value.naturalWidth || imageRef.value.width
+    naturalHeight.value = imageRef.value.naturalHeight || imageRef.value.height
+  }
+  // Reset view to properly center and zoom to fit content
+  nextTick(() => {
+    resetView()
+    hasInitializedView.value = true
+  })
 }
 
 function handleModelBounds(rect: DOMRect) {
@@ -268,11 +344,28 @@ function handleCursorMove(e: PointerEvent) {
   cursorY.value = e.clientY
 }
 
+let resizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
   window.addEventListener('resize', updateAssetBounds)
+
+  if (contentRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      updateAssetBounds()
+      if (!hasInitializedView.value && naturalWidth.value > 0) {
+        resetView()
+        hasInitializedView.value = true
+      }
+    })
+    resizeObserver.observe(contentRef.value)
+  }
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateAssetBounds)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 defineExpose({ adjustZoom, resetView, setActiveView, flipModel: flipModelOrientation })

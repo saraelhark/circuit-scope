@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class ThreadAnnotation(BaseModel):
@@ -21,18 +21,6 @@ class ThreadCommentBase(BaseModel):
 
     content: str = Field(..., min_length=1, max_length=5000)
     parent_id: UUID | None = None
-    author_id: UUID | None = None
-    guest_name: str | None = Field(default=None, max_length=255)
-    guest_email: EmailStr | None = None
-
-    @model_validator(mode="after")
-    def validate_author_sources(self) -> "ThreadCommentBase":
-        """Allow fully anonymous comments (no author_id, no guest name/email),
-        but if guest identity is partially provided, require both fields."""
-        if self.guest_name is None and self.guest_email is not None:
-            msg = "Guest comments require both name and email."
-            raise ValueError(msg)
-        return self
 
 
 class ThreadCommentCreate(ThreadCommentBase):
@@ -62,7 +50,6 @@ class CommentThreadCreate(BaseModel):
     pin_x: float = Field(..., ge=-100000, le=100000)
     pin_y: float = Field(..., ge=-100000, le=100000)
     annotation: ThreadAnnotation | None = None
-    created_by_id: UUID | None = None
     initial_comment: InitialThreadComment
 
 

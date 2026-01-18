@@ -106,7 +106,7 @@ const zoomControls = [
     </template>
   </div>
   <div
-    class="absolute left-1/2 bottom-6 -translate-x-1/2 z-20 flex items-center gap-3 rounded-lg border bg-card/90 px-4 py-2 backdrop-blur lg:top-3 lg:bottom-auto"
+    class="absolute left-1/2 bottom-20 -translate-x-1/2 z-20 flex items-center gap-3 rounded-lg border bg-card/90 px-4 py-2 backdrop-blur pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:top-3 lg:bottom-auto lg:pb-2"
   >
     <div class="flex items-center gap-1">
       <Button

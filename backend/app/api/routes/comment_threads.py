@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_db_session
+from app.api.dependencies import get_db_session, get_current_user
 from app.core.rate_limit import limiter
 from app.api.schemas.comment_threads import (
     CommentThreadCreate,
@@ -23,6 +23,7 @@ from app.services.comment_threads import (
     list_threads,
     update_thread_resolution,
 )
+from db.models import User
 
 router = APIRouter()
 
@@ -43,9 +44,12 @@ async def create_comment_thread(
     project_id: UUID,
     payload: CommentThreadCreate,
     session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> CommentThreadResponse:
-    """Create a new review thread."""
-    return await create_thread(session, project_id=project_id, payload=payload)
+    """Create a new review thread. Requires authentication."""
+    return await create_thread(
+        session, project_id=project_id, payload=payload, author_id=current_user.id
+    )
 
 
 @router.post(
@@ -60,13 +64,15 @@ async def create_comment_thread_reply(
     thread_id: UUID,
     payload: ThreadCommentCreate,
     session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> ThreadCommentResponse:
-    """Add a new comment to a review thread."""
+    """Add a new comment to a review thread. Requires authentication."""
     return await add_comment(
         session,
         project_id=project_id,
         thread_id=thread_id,
         payload=payload,
+        author_id=current_user.id,
     )
 
 
@@ -94,9 +100,12 @@ async def delete_comment_thread(
     project_id: UUID,
     thread_id: UUID,
     session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> None:
-    """Delete a review thread."""
-    await delete_thread(session, project_id=project_id, thread_id=thread_id)
+    """Delete a review thread. Only project owner can delete threads."""
+    await delete_thread(
+        session, project_id=project_id, thread_id=thread_id, user_id=current_user.id
+    )
     return None
 
 
@@ -109,12 +118,14 @@ async def delete_comment_thread_comment(
     thread_id: UUID,
     comment_id: UUID,
     session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> None:
-    """Delete a comment from a review thread."""
+    """Delete a comment from a review thread. Only project owner can delete comments."""
     await delete_comment(
         session,
         project_id=project_id,
         thread_id=thread_id,
         comment_id=comment_id,
+        user_id=current_user.id,
     )
     return None

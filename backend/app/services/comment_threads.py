@@ -61,11 +61,10 @@ async def create_thread(
     *,
     project_id: UUID,
     payload: CommentThreadCreate,
+    author_id: UUID,
 ) -> CommentThreadResponse:
-    """Create a new thread."""
+    """Create a new thread. Requires authenticated user."""
     await ensure_project_exists(session, project_id)
-
-    created_by_id = payload.created_by_id or payload.initial_comment.author_id
 
     thread = CommentThread(
         project_id=project_id,
@@ -73,15 +72,13 @@ async def create_thread(
         pin_x=payload.pin_x,
         pin_y=payload.pin_y,
         annotation=payload.annotation.model_dump() if payload.annotation else None,
-        created_by_id=created_by_id,
+        created_by_id=author_id,
     )
 
     initial = payload.initial_comment
     initial_comment = ThreadComment(
         content=initial.content,
-        author_id=initial.author_id,
-        guest_name=initial.guest_name,
-        guest_email=str(initial.guest_email) if initial.guest_email else None,
+        author_id=author_id,
     )
     thread.comments.append(initial_comment)
 
@@ -96,11 +93,11 @@ async def create_thread(
     thread_with_comments = result.scalar_one()
 
     project = await session.get(Project, project_id)
-    if project and project.owner_id != created_by_id:
+    if project and project.owner_id != author_id:
         await create_notification(
             session,
             user_id=project.owner_id,
-            actor_id=created_by_id,
+            actor_id=author_id,
             project_id=project_id,
             thread_id=thread.id,
             type="comment_thread_created",
@@ -116,8 +113,9 @@ async def add_comment(
     project_id: UUID,
     thread_id: UUID,
     payload: ThreadCommentCreate,
+    author_id: UUID,
 ) -> ThreadCommentResponse:
-    """Add a new comment to a thread."""
+    """Add a new comment to a thread. Requires authenticated user."""
     thread = await _get_thread(session, project_id, thread_id)
 
     if payload.parent_id is not None:
@@ -131,9 +129,7 @@ async def add_comment(
         thread_id=thread.id,
         content=payload.content,
         parent_id=payload.parent_id,
-        author_id=payload.author_id,
-        guest_name=payload.guest_name,
-        guest_email=str(payload.guest_email) if payload.guest_email else None,
+        author_id=author_id,
     )
 
     session.add(comment)
@@ -149,11 +145,11 @@ async def add_comment(
 
     project = await session.get(Project, project_id)
     if project:
-        if project.owner_id != payload.author_id:
+        if project.owner_id != author_id:
             await create_notification(
                 session,
                 user_id=project.owner_id,
-                actor_id=payload.author_id,
+                actor_id=author_id,
                 project_id=project_id,
                 thread_id=thread.id,
                 type="comment_reply",
@@ -162,13 +158,13 @@ async def add_comment(
 
         if (
             thread.created_by_id
-            and thread.created_by_id != payload.author_id
+            and thread.created_by_id != author_id
             and thread.created_by_id != project.owner_id
         ):
             await create_notification(
                 session,
                 user_id=thread.created_by_id,
-                actor_id=payload.author_id,
+                actor_id=author_id,
                 project_id=project_id,
                 thread_id=thread.id,
                 type="comment_reply",
@@ -225,9 +221,18 @@ async def delete_thread(
     *,
     project_id: UUID,
     thread_id: UUID,
+    user_id: UUID,
 ) -> None:
-    """Delete a thread."""
+    """Delete a thread. Only project owner can delete threads."""
     thread = await _get_thread(session, project_id, thread_id)
+    project = await session.get(Project, project_id)
+
+    if not project or project.owner_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only project owner can delete threads",
+        )
+
     await session.delete(thread)
     await session.commit()
 
@@ -238,9 +243,17 @@ async def delete_comment(
     project_id: UUID,
     thread_id: UUID,
     comment_id: UUID,
+    user_id: UUID,
 ) -> None:
-    """Delete a comment."""
+    """Delete a comment. Only project owner can delete comments."""
     thread = await _get_thread(session, project_id, thread_id)
+    project = await session.get(Project, project_id)
+
+    if not project or project.owner_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only project owner can delete comments",
+        )
 
     comment = await session.get(ThreadComment, comment_id)
     if comment is None or comment.thread_id != thread.id:

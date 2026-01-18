@@ -64,7 +64,7 @@ function saveEdit() {
 
 function goToProject() {
   if (isEditing.value) return
-  router.push(`/projects/${props.project.id}`)
+  router.push(`/projects/${props.project.id}/review`)
 }
 
 async function shareProject() {

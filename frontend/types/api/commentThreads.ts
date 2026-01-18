@@ -51,16 +51,12 @@ export interface CommentThreadListResponse {
 
 export interface InitialThreadCommentPayload {
   content: string
-  author_id?: string | null
-  guest_name?: string | null
-  guest_email?: string | null
 }
 
 export interface CommentThreadCreatePayload {
   view_id: string
   pin_x: number
   pin_y: number
-  created_by_id?: string | null
   annotation?: ThreadAnnotation | null
   initial_comment: InitialThreadCommentPayload
 }
@@ -68,9 +64,6 @@ export interface CommentThreadCreatePayload {
 export interface ThreadCommentCreatePayload {
   content: string
   parent_id?: string | null
-  author_id?: string | null
-  guest_name?: string | null
-  guest_email?: string | null
 }
 
 export interface ThreadResolutionUpdatePayload {

@@ -8,11 +8,9 @@ import ReviewCanvas, {
 } from '~/components/projects/ReviewCanvas.vue'
 import ReviewCanvasToolbar from '~/components/projects/ReviewCanvasToolbar.vue'
 import ReviewCommentsSidebar from '~/components/projects/ReviewCommentsSidebar.vue'
-import AuthChoiceModal from '~/components/projects/AuthChoiceModal.vue'
 import AppHeader from '~/components/AppHeader.vue'
 import { useProject } from '~/composables/useProjects'
 import { useCommentThreads } from '~/composables/useCommentThreads'
-import { generateAlias } from '~/lib/alias'
 import { buildReviewViews } from '~/lib/reviewViewer'
 import { mapThreadsToAnnotations } from '~/lib/reviewAnnotations'
 import type { AnnotationTool, CommentThread, ThreadAnnotation } from '~/types/api/commentThreads'
@@ -28,28 +26,18 @@ const router = useRouter()
 const projectId = computed(() => route.params.id as string)
 
 const { getProject, getProjectPreviews } = useProject()
-const { listThreads, createThread, addComment, updateThreadResolution } = useCommentThreads()
+const { listThreads, createThread, addComment, updateThreadResolution, deleteThread } = useCommentThreads()
 
 const { status } = useAuth()
 const { backendUser } = useBackendUser()
 
-const anonAlias = useCookie<string | null>('cs_anon_alias', { default: () => null })
-
-function getAnonAlias(): string {
-  if (!anonAlias.value) {
-    anonAlias.value = generateAlias()
-  }
-  return anonAlias.value as string
-}
+const isAuthenticated = computed(() => status.value === 'authenticated' && !!backendUser.value?.id)
 
 const currentUserInitial = computed(() => {
   if (backendUser.value?.display_name) {
     return backendUser.value.display_name.charAt(0).toUpperCase()
   }
-  if (anonAlias.value) {
-    return anonAlias.value.charAt(0).toUpperCase()
-  }
-  return 'G'
+  return '?'
 })
 
 const { data: projectData } = useAsyncData<Project>(
@@ -92,7 +80,11 @@ const projectOwnerId = computed(
   () => (project.value as any)?.owner_id as string | undefined,
 )
 const canResolveThreads = computed(
-  () => status.value === 'authenticated' && !!backendUser.value?.id && backendUser.value.id === projectOwnerId.value,
+  () => isAuthenticated.value && backendUser.value?.id === projectOwnerId.value,
+)
+
+const canDeleteThreads = computed(
+  () => isAuthenticated.value && backendUser.value?.id === projectOwnerId.value,
 )
 
 const viewerViews = computed<ViewerView[]>(() =>
@@ -114,10 +106,10 @@ const threads = computed(() => threadData.value?.items ?? [])
 const threadStatusComputed = computed(() => threadStatus.value)
 
 const currentUserKey = computed(() => {
-  if (status.value === 'authenticated' && backendUser.value?.id) {
+  if (isAuthenticated.value && backendUser.value?.id) {
     return backendUser.value.id
   }
-  return anonAlias.value || 'Anonymous'
+  return 'Guest'
 })
 
 const authorColorMap = computed(() => {
@@ -203,6 +195,10 @@ type PinCreatedPayload = {
 }
 
 function handlePinCreated(payload: PinCreatedPayload) {
+  if (!isAuthenticated.value) {
+    router.push('/login')
+    return
+  }
   pendingPin.value = {
     viewId: payload.viewId,
     x: payload.pinX,
@@ -230,10 +226,6 @@ watch(viewerViews, (views) => {
 })
 
 type PinAnnotationData = PinViewerAnnotation['data']
-
-const showAuthModal = ref(false)
-const authModalContext = ref<'thread' | 'reply' | null>(null)
-const tempContent = ref('')
 
 function setActiveView(viewId: string) {
   if (currentViewId.value === viewId) {
@@ -272,36 +264,14 @@ function cancelPendingPin() {
 async function submitComment(content: string) {
   if (!pendingPin.value) return
 
-  const isAnonymous = status.value !== 'authenticated'
-  const isFirstTime = !anonAlias.value
-
-  if (isAnonymous && isFirstTime) {
-    tempContent.value = content
-    authModalContext.value = 'thread'
-    getAnonAlias()
-    showAuthModal.value = true
+  if (!isAuthenticated.value) {
+    router.push('/login')
     return
   }
-
-  await executeSubmitComment(content)
-}
-
-async function executeSubmitComment(content: string) {
-  if (!pendingPin.value) return
 
   const annotation: ThreadAnnotation = {
     tool: pendingPin.value.tool,
     data: pendingPin.value.data,
-  }
-
-  let authorId = null
-  let guestName = null
-
-  if (status.value === 'authenticated' && backendUser.value?.id) {
-    authorId = backendUser.value.id
-  }
-  else {
-    guestName = getAnonAlias()
   }
 
   const payload = {
@@ -311,8 +281,6 @@ async function executeSubmitComment(content: string) {
     annotation,
     initial_comment: {
       content: content,
-      author_id: authorId,
-      guest_name: guestName,
     },
   }
 
@@ -332,40 +300,15 @@ async function submitReply(content: string) {
   const thread = activeThread.value
   if (!thread) return
 
-  const isAnonymous = status.value !== 'authenticated'
-  const isFirstTime = !anonAlias.value
-
-  if (isAnonymous && isFirstTime) {
-    tempContent.value = content
-    authModalContext.value = 'reply'
-    getAnonAlias()
-    showAuthModal.value = true
+  if (!isAuthenticated.value) {
+    router.push('/login')
     return
-  }
-
-  await executeSubmitReply(content)
-}
-
-async function executeSubmitReply(content: string) {
-  const thread = activeThread.value
-  if (!thread) return
-
-  let authorId = null
-  let guestName = null
-
-  if (status.value === 'authenticated' && backendUser.value?.id) {
-    authorId = backendUser.value.id
-  }
-  else {
-    guestName = getAnonAlias()
   }
 
   try {
     await addComment(projectId.value, thread.id, {
       content: content,
-      author_id: authorId,
       parent_id: null,
-      guest_name: guestName,
     })
     await refreshThreads()
   }
@@ -374,37 +317,25 @@ async function executeSubmitReply(content: string) {
   }
 }
 
-async function continueAsAnonymous() {
-  const content = tempContent.value
-  if (authModalContext.value === 'thread') {
-    await executeSubmitComment(content)
-  }
-  else if (authModalContext.value === 'reply') {
-    await executeSubmitReply(content)
-  }
-  showAuthModal.value = false
-  authModalContext.value = null
-  tempContent.value = ''
-}
-
-function goToLogin() {
-  showAuthModal.value = false
-  authModalContext.value = null
-  router.push('/login')
-}
-
-function cancelAuthModal() {
-  showAuthModal.value = false
-  authModalContext.value = null
-  tempContent.value = ''
-}
-
 async function toggleThreadResolution(thread: CommentThread) {
   await updateThreadResolution(projectId.value, thread.id, {
     is_resolved: !thread.is_resolved,
     resolved_by_id: null,
   })
   await refreshThreads()
+}
+
+async function handleDeleteThread(threadId: string) {
+  try {
+    await deleteThread(projectId.value, threadId)
+    if (activeThreadId.value === threadId) {
+      activeThreadId.value = null
+    }
+    await refreshThreads()
+  }
+  catch (e: any) {
+    console.error('Failed to delete thread', e)
+  }
 }
 
 const sidebarOpen = ref(true)
@@ -544,20 +475,17 @@ onMounted(() => {
           new-thread-content=""
           reply-content=""
           :can-resolve-threads="canResolveThreads"
+          :can-delete-threads="canDeleteThreads"
           @open-thread="openThread"
           @toggle-thread-resolution="toggleThreadResolution"
           @highlight-thread="highlightThread"
           @unhighlight-thread="unhighlightThread"
+          @delete-thread="handleDeleteThread"
+          @submit-reply="submitReply"
+          @thread-selected="(id) => highlightedThreadId = id"
+          @thread-deselected="highlightedThreadId = null"
         />
       </div>
     </aside>
   </div>
-
-  <AuthChoiceModal
-    :open="showAuthModal"
-    :alias="anonAlias"
-    @continue-anonymous="continueAsAnonymous"
-    @sign-in="goToLogin"
-    @cancel="cancelAuthModal"
-  />
 </template>

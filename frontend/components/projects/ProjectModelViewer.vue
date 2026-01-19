@@ -270,7 +270,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="containerRef"
-    class="relative h-full w-full overflow-hidden rounded-lg bg-[#05060a]"
+    class="relative h-full w-full overflow-hidden bg-[#05060a]"
   >
     <div
       v-if="!modelUrl"

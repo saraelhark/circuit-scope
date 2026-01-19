@@ -3,14 +3,14 @@ useBackendUser()
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col bg-cs-dark-green text-white">
+  <div class="flex min-h-screen flex-col bg-cs-bg text-white">
     <AppHeader />
 
     <main class="container flex-1">
       <slot />
     </main>
 
-    <footer class="border-t border-white/10 bg-cs-dark-green py-6">
+    <footer class="border-t border-cs-border bg-cs-panel py-6">
       <div class="container flex items-center justify-between text-sm text-white/60">
         <div>
           {{ new Date().getFullYear() }} Circuit Scope. All rights reserved.

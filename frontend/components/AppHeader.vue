@@ -92,10 +92,10 @@ async function markAsRead(notification: any) {
     isNotificationsOpen.value = false
 
     if (notification.thread_id) {
-      await navigateTo(`/projects/${notification.project_id}/review?thread=${notification.thread_id}`)
+      await navigateTo(`/projects/${notification.project_id}?thread=${notification.thread_id}`)
     }
     else {
-      await navigateTo(`/projects/${notification.project_id}/review`)
+      await navigateTo(`/projects/${notification.project_id}`)
     }
   }
 }
@@ -130,20 +130,20 @@ watch(() => backendUser.value?.id, (newId) => {
 
 <template>
   <header
-    class="sticky top-0 z-50 w-full bg-cs-light-green text-cs-charcoal font-primary border-b-4 border-cs-whiteish"
+    class="sticky top-0 z-50 w-full bg-cs-panel text-white font-primary border-b border-cs-border"
   >
     <div class="container px-8 sm:px-16 flex h-14 items-center justify-between">
       <div class="flex items-center gap-4">
         <NuxtLink
           to="/"
-          class="flex items-center gap-2 text-xl font-bold text-cs-charcoal hover:opacity-80 transition-opacity"
+          class="flex items-center gap-2 text-xl font-bold text-white hover:text-cs-brand transition-colors"
         >
           <img
             class="h-8 w-8 rounded-lg"
             src="/logo.svg"
             alt="Circuit Scope logo"
           >
-          <span class="ml-4 text-cs-whiteish hidden sm:block">Circuit Scope</span>
+          <span class="ml-4 hidden sm:block">Circuit Scope</span>
         </NuxtLink>
       </div>
 
@@ -155,9 +155,9 @@ watch(() => backendUser.value?.id, (newId) => {
           rel="noreferrer"
           variant="ghost"
           size="icon"
-          class="text-cs-charcoal hover:opacity-80 hidden sm:inline-flex"
+          class="text-white hover:text-cs-brand hidden sm:inline-flex"
         >
-          <i class="fab fa-github text-xl text-cs-dark-green" />
+          <i class="fab fa-github text-xl" />
           <span class="sr-only">Open Circuit Scope on GitHub</span>
         </Button>
 
@@ -179,27 +179,27 @@ watch(() => backendUser.value?.id, (newId) => {
             <Button
               variant="ghost"
               size="icon"
-              class="relative text-cs-charcoal hover:bg-cs-light-green/20"
+              class="relative text-white hover:text-cs-brand hover:bg-cs-card"
               @click="toggleNotifications"
             >
-              <i class="fas fa-bell text-xl text-cs-dark-green" />
+              <i class="fas fa-bell text-xl" />
               <span
                 v-if="unreadCount > 0"
-                class="absolute top-2 right-2 h-2 w-2 rounded-full bg-cs-red"
+                class="absolute top-2 right-2 h-2 w-2 rounded-full bg-cs-lime"
               />
             </Button>
 
             <div
               v-if="isNotificationsOpen"
-              class="absolute right-0 mt-2 w-80 origin-top-right rounded-lg border bg-white shadow-lg focus:outline-none animate-in fade-in zoom-in-95 duration-200 max-h-[80vh] overflow-y-auto z-50 text-foreground font-secondary"
+              class="absolute right-0 mt-2 w-80 origin-top-right rounded-lg border border-cs-border bg-cs-card shadow-lg focus:outline-none animate-in fade-in zoom-in-95 duration-200 max-h-[80vh] overflow-y-auto z-50 text-white font-secondary"
             >
-              <div class="flex items-center justify-between px-4 py-3 border-b">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-cs-border">
                 <h3 class="font-semibold text-sm">
                   Notifications
                 </h3>
                 <button
                   v-if="unreadCount > 0"
-                  class="text-xs text-cs-blue hover:underline"
+                  class="text-xs text-cs-cyan hover:underline"
                   @click="markAllRead"
                 >
                   Mark all read
@@ -208,20 +208,20 @@ watch(() => backendUser.value?.id, (newId) => {
 
               <div
                 v-if="notifications.length === 0"
-                class="p-4 text-center text-sm text-muted-foreground"
+                class="p-4 text-center text-sm text-white/50"
               >
                 No notifications
               </div>
 
               <div
                 v-else
-                class="divide-y"
+                class="divide-y divide-cs-border"
               >
                 <div
                   v-for="notification in notifications"
                   :key="notification.id"
-                  class="p-3 hover:bg-accent cursor-pointer transition-colors text-sm"
-                  :class="{ 'bg-cs-light-green/10': !notification.is_read }"
+                  class="p-3 hover:bg-cs-panel cursor-pointer transition-colors text-sm"
+                  :class="{ 'bg-cs-brand/10': !notification.is_read }"
                   @click="markAsRead(notification)"
                 >
                   <div class="flex gap-3">
@@ -232,13 +232,13 @@ watch(() => backendUser.value?.id, (newId) => {
                       >
                         {{ notification.message }}
                       </p>
-                      <p class="text-xs text-muted-foreground">
+                      <p class="text-xs text-cs-copper">
                         {{ new Date(notification.created_at).toLocaleDateString() }}
                       </p>
                     </div>
                     <div
                       v-if="!notification.is_read"
-                      class="h-2 w-2 mt-1 rounded-full bg-cs-light-green shrink-0"
+                      class="h-2 w-2 mt-1 rounded-full bg-cs-brand shrink-0"
                     />
                   </div>
                 </div>
@@ -255,7 +255,7 @@ watch(() => backendUser.value?.id, (newId) => {
               @click="toggleUserMenu"
             >
               <div
-                class="h-8 w-8 rounded-full bg-white flex items-center justify-center overflow-hidden text-cs-charcoal"
+                class="h-8 w-8 rounded-full bg-cs-card ring-2 ring-cs-border flex items-center justify-center overflow-hidden text-white"
               >
                 <img
                   v-if="user?.image"
@@ -272,20 +272,20 @@ watch(() => backendUser.value?.id, (newId) => {
 
             <div
               v-if="isUserMenuOpen"
-              class="absolute right-0 mt-2 w-56 origin-top-right rounded-lg border bg-cs-light-green p-1 shadow-lg focus:outline-none animate-in fade-in zoom-in-95 duration-200 z-50 text-foreground font-secondary"
+              class="absolute right-0 mt-2 w-56 origin-top-right rounded-lg border border-cs-border bg-cs-card p-1 shadow-lg focus:outline-none animate-in fade-in zoom-in-95 duration-200 z-50 text-white font-secondary"
             >
               <NuxtLink
                 to="/dashboard"
-                class="relative flex cursor-default select-none items-center rounded-sm p-2 text-sm outline-none hover:bg-cs-charcoal/10"
+                class="relative flex cursor-default select-none items-center rounded-sm p-2 text-sm outline-none hover:bg-cs-panel"
                 @click="isUserMenuOpen = false"
               >
                 <i class="fas fa-folder mr-2 h-4 w-4" />
                 <span>My Projects</span>
               </NuxtLink>
-              <div class="h-px my-1 bg-muted" />
+              <div class="h-px my-1 bg-cs-border" />
               <Button
                 variant="ghost"
-                class="relative flex w-full cursor-default select-none items-center rounded-sm p-2 text-sm outline-none hover:bg-cs-charcoal/10 h-auto justify-start"
+                class="relative flex w-full cursor-default select-none items-center rounded-sm p-2 text-sm outline-none hover:bg-cs-panel h-auto justify-start text-white"
                 @click="handleSignOut"
               >
                 <i class="fas fa-right-from-bracket mr-2" />

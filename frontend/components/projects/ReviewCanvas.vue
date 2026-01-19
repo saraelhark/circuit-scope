@@ -117,10 +117,6 @@ function handleCombinedPointerMove(e: PointerEvent) {
   handlePointerMove(e)
 }
 
-// firstVisibleLayerId computed removed
-
-// bottomVisibleLayerId computed removed
-
 function setActiveView(viewId: string) {
   if (activeViewId.value === viewId) return
   if (!props.views.some(view => view.id === viewId)) return
@@ -153,8 +149,6 @@ watch(activeViewId, (val) => {
   hasInitializedView.value = false
   resetView()
 })
-
-// activeView watcher for layers removed
 
 function resetView() {
   resetTranslate()
@@ -331,8 +325,6 @@ function handleModelBounds(rect: DOMRect) {
 function flipModelOrientation() {
   modelViewerRef.value?.toggleFlip()
 }
-
-// toggleLayer function removed
 
 const cursorX = ref(0)
 const cursorY = ref(0)

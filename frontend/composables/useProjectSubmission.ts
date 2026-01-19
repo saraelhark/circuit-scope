@@ -178,7 +178,7 @@ export function useProjectSubmission() {
         form.sourceType === 'kicad' ? file.value ?? undefined : undefined,
         form.sourceType === 'images' ? imageFiles.value : undefined,
       )
-      router.push(`/projects/${response.project.id}/review`)
+      router.push(`/projects/${response.project.id}`)
     }
     catch (error: any) {
       submissionError.value = error?.data?.detail ?? error?.message ?? 'Failed to create project.'

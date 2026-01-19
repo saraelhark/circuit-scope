@@ -85,7 +85,7 @@ function onImageDragEnd() {
               v-model="form.name"
               placeholder="ESP32 IoT weather station"
               required
-              class="bg-white text-cs-charcoal border-cs-whiteish"
+              class="bg-cs-panel text-white border-cs-border placeholder:text-white/50"
             />
           </div>
 
@@ -98,7 +98,7 @@ function onImageDragEnd() {
               id="description"
               v-model="form.description"
               placeholder="Describe the project to give better context for the design review"
-              class="bg-white text-cs-charcoal border-cs-whiteish"
+              class="bg-cs-panel text-white border-cs-border placeholder:text-white/50"
             />
           </div>
 
@@ -108,18 +108,18 @@ function onImageDragEnd() {
               class="text-white"
             >Tags</Label>
             <div
-              class="flex min-h-10 flex-wrap items-center gap-1 rounded-md border border-cs-whiteish bg-white px-2 py-1 text-sm text-cs-charcoal"
+              class="flex min-h-10 flex-wrap items-center gap-1 rounded-md border border-cs-border bg-cs-panel px-2 py-1 text-sm text-white"
             >
               <Badge
                 v-for="(tag, index) in tags"
                 :key="`${tag}-${index}`"
                 variant="outline"
-                class="border-cs-gold bg-cs-blue/80 text-cs-whiteish text-[11px] px-2 py-0.5 uppercase tracking-wide rounded-sm flex items-center gap-1"
+                class="border-cs-copper bg-cs-bg text-cs-copper text-[11px] px-2 py-0.5 uppercase tracking-wide rounded-sm flex items-center gap-1"
               >
                 <span>{{ tag }}</span>
                 <button
                   type="button"
-                  class="text-[10px] leading-none"
+                  class="text-[10px] leading-none hover:text-white"
                   @click.stop="removeTag(index)"
                 >
                   ×
@@ -130,19 +130,19 @@ function onImageDragEnd() {
                 v-model="form.tagsText"
                 type="text"
                 placeholder="esp32, battery, sensor"
-                class="flex-1 bg-transparent text-cs-charcoal placeholder:text-cs-charcoal/60 outline-none border-none min-w-[80px] py-1"
+                class="flex-1 bg-transparent text-white placeholder:text-white/50 outline-none border-none min-w-[80px] py-1"
                 @keydown="onTagKeydown"
                 @blur="commitCurrentTag"
               >
             </div>
-            <p class="text-xs text-cs-whiteish/80">
+            <p class="text-xs text-white/60">
               Separate tags with commas.
             </p>
           </div>
 
           <div class="space-y-2">
             <Label class="text-white">Project type</Label>
-            <div class="flex gap-4 text-sm text-cs-whiteish/90">
+            <div class="flex gap-4 text-sm text-white/80">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input
                   v-model="form.sourceType"
@@ -169,7 +169,7 @@ function onImageDragEnd() {
             class="space-y-2"
           >
             <Label class="text-white">Thumbnail preview</Label>
-            <div class="flex gap-4 text-sm text-cs-whiteish/90">
+            <div class="flex gap-4 text-sm text-white/80">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input
                   v-model="form.thumbnailKind"
@@ -212,16 +212,16 @@ function onImageDragEnd() {
               id="file"
               type="file"
               accept=".zip"
-              class="bg-white text-cs-charcoal border-cs-whiteish file:text-cs-charcoal cursor-pointer"
+              class="bg-cs-panel text-white border-cs-border file:text-white file:bg-cs-brand file:border-0 file:mr-3 cursor-pointer"
               @change="onFileChange"
             />
-            <p class="text-sm text-cs-whiteish/80">
+            <p class="text-sm text-white/60">
               Upload a KiCad project archive (max {{ MAX_ARCHIVE_SIZE_MB }} MB).
-              Only <code>.zip</code> files are supported.
+              Only <code class="text-cs-copper">.zip</code> files are supported.
             </p>
             <p
               v-if="file"
-              class="text-xs text-cs-whiteish/80"
+              class="text-xs text-cs-copper"
             >
               Selected file: {{ file?.name }}
             </p>
@@ -240,24 +240,24 @@ function onImageDragEnd() {
               type="file"
               multiple
               accept="image/png,image/jpeg,image/jpg,image/webp"
-              class="bg-white text-cs-charcoal border-cs-whiteish file:text-cs-charcoal cursor-pointer"
+              class="bg-cs-panel text-white border-cs-border file:text-white file:bg-cs-brand file:border-0 file:mr-3 cursor-pointer"
               @change="onImagesChange"
             />
-            <p class="text-sm text-cs-whiteish/80">
+            <p class="text-sm text-white/60">
               Upload one or more board photos (each max {{ MAX_IMAGE_SIZE_MB }} MB).
             </p>
             <div
               v-if="imageItems.length"
               class="space-y-2"
             >
-              <p class="text-xs text-cs-whiteish/80">
+              <p class="text-xs text-white/60">
                 Drag to reorder. The first image will be used as the main preview.
               </p>
               <div class="flex flex-wrap gap-3">
                 <div
                   v-for="(item, index) in imageItems"
                   :key="item.id"
-                  class="relative h-20 w-20 flex-shrink-0 cursor-move overflow-hidden rounded-md border border-cs-whiteish/70 bg-cs-charcoal/80"
+                  class="relative h-20 w-20 flex-shrink-0 cursor-move overflow-hidden rounded-md border border-cs-border bg-cs-panel"
                   draggable="true"
                   :class="imageDragIndex === index ? 'ring-2 ring-cs-lime' : ''"
                   @dragstart="onImageDragStart(index, $event)"
@@ -272,7 +272,7 @@ function onImageDragEnd() {
                   >
                   <button
                     type="button"
-                    class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-cs-red text-[10px] font-bold text-white shadow"
+                    class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-cs-error text-[10px] font-bold text-white shadow"
                     @click.stop="removeImage(item.id)"
                   >
                     ×

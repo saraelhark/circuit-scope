@@ -11,7 +11,7 @@ const props = defineProps<{
 
 const timeAgo = useTimeAgo(() => new Date(props.project.created_at))
 
-const MAX_DESCRIPTION_LENGTH = 120
+const MAX_DESCRIPTION_LENGTH = 80
 
 function formattedDescription(description: string | null) {
   const desc = description?.trim()
@@ -25,49 +25,53 @@ function formattedDescription(description: string | null) {
 
 <template>
   <NuxtLink
-    :to="`/projects/${project.id}/review`"
-    class="group flex flex-col gap-4 rounded-[8px] border-4 border-white bg-cs-light-green p-4 transition-all hover:brightness-105 sm:flex-row text-white shadow-sm"
+    :to="`/projects/${project.id}`"
+    class="group flex flex-col rounded-lg border border-cs-border bg-cs-card overflow-hidden transition-all hover:border-cs-brand text-white shadow-sm"
   >
-    <div class="shrink-0 sm:w-32 md:w-40">
-      <div
-        class="aspect-square w-full overflow-hidden rounded-md bg-cs-charcoal flex items-center justify-center"
-      >
-        <ProjectPreviewThumbnail
-          :project-id="project.id"
-          :thumbnail-kind="project.thumbnail_kind"
-          :source-type="project.source_type"
-        />
-      </div>
+    <div class="aspect-[4/3] w-full overflow-hidden bg-cs-panel flex items-center justify-center">
+      <ProjectPreviewThumbnail
+        :project-id="project.id"
+        :thumbnail-kind="project.thumbnail_kind"
+        :source-type="project.source_type"
+        class="w-full h-full object-cover"
+      />
     </div>
 
-    <div class="flex min-w-0 flex-1 flex-col gap-2">
-      <div class="flex items-start justify-between gap-2">
-        <div>
-          <h3
-            class="text-lg font-bold leading-tight tracking-tight text-white font-primary group-hover:underline"
-          >
-            {{ project.name }}
-          </h3>
-          <p class="mt-1 text-sm text-white/80 line-clamp-2 font-secondary">
-            {{ formattedDescription(project.description) }}
-          </p>
-          <div
-            v-if="project.tags && project.tags.length"
-            class="mt-2 flex flex-wrap gap-1 font-secondary"
-          >
-            <Badge
-              v-for="tag in project.tags"
-              :key="tag"
-              variant="outline"
-              class="border-cs-gold bg-cs-blue/80 text-cs-whiteish text-[11px] px-2 py-0.5 uppercase tracking-wide rounded-sm"
-            >
-              {{ tag }}
-            </Badge>
-          </div>
-        </div>
+    <div class="flex flex-col gap-2 p-4">
+      <h3
+        class="text-base font-bold leading-tight tracking-tight text-white font-primary group-hover:underline line-clamp-1"
+      >
+        {{ project.name }}
+      </h3>
+
+      <p
+        v-if="project.description"
+        class="text-sm text-white/70 line-clamp-2 font-secondary min-h-[2.5rem]"
+      >
+        {{ formattedDescription(project.description) }}
+      </p>
+
+      <div
+        v-if="project.tags && project.tags.length"
+        class="flex flex-wrap gap-1 font-secondary"
+      >
+        <Badge
+          v-for="tag in project.tags.slice(0, 3)"
+          :key="tag"
+          variant="outline"
+          class="border-cs-copper bg-cs-panel text-cs-copper text-[10px] px-1.5 py-0 uppercase tracking-wide rounded-sm"
+        >
+          {{ tag }}
+        </Badge>
+        <span
+          v-if="project.tags.length > 3"
+          class="text-[10px] text-white/50"
+        >
+          +{{ project.tags.length - 3 }}
+        </span>
       </div>
 
-      <div class="mt-auto">
+      <div class="mt-auto pt-2 border-t border-cs-border/50">
         <ProjectStats
           :comment-count="project.total_comment_count"
           :view-count="project.view_count"

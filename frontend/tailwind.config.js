@@ -50,16 +50,31 @@ export default {
           4: 'hsl(var(--chart-4))',
           5: 'hsl(var(--chart-5))',
         },
-        'cs-dark-green': '#0F6B45',
-        'cs-light-green': '#1AA36F',
-        'cs-lighter-green': '#92E3B1',
-        'cs-lime': '#BEFF47',
-        'cs-whiteish': '#F2F2F2',
-        'cs-blue': '#4BA3F1',
-        'cs-charcoal': '#202223',
-        'cs-red': '#E45858',
-        'cs-gold': '#D29F13',
-        'cs-black': '#001124',
+        // Core UI Neutrals (dark, calm, slightly green-biased)
+        'cs-bg': '#101615',
+        'cs-panel': '#18211F',
+        'cs-card': '#1E2A27',
+        'cs-border': '#2A3A35',
+
+        // Brand Greens
+        'cs-brand': '#2FA37A',
+        'cs-lime': '#C8F64A',
+
+        // Supporting Accents
+        'cs-copper': '#E09F3E',
+        'cs-cyan': '#4FD1C5',
+        'cs-error': '#F26D6D',
+
+        // Legacy mappings for backwards compatibility
+        'cs-dark-green': '#2FA37A',
+        'cs-light-green': '#2FA37A',
+        'cs-lighter-green': '#3DC992',
+        'cs-whiteish': '#E8EDEB',
+        'cs-blue': '#4FD1C5',
+        'cs-charcoal': '#1E2A27',
+        'cs-red': '#F26D6D',
+        'cs-gold': '#E09F3E',
+        'cs-black': '#101615',
       },
       fontFamily: {
         primary: ['"JetBrains Mono"', 'monospace'],

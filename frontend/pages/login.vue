@@ -32,7 +32,7 @@ defineOgImageComponent('OgTemplate', {
       <div class="mt-4 space-y-4">
         <button
           :disabled="status === 'loading'"
-          class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-50"
+          class="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100 disabled:opacity-50"
           @click="signIn('github')"
         >
           <GithubIcon class="w-5 h-5 mr-2" />
@@ -41,7 +41,7 @@ defineOgImageComponent('OgTemplate', {
 
         <button
           :disabled="status === 'loading'"
-          class="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          class="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100 disabled:opacity-50"
           @click="signIn('google')"
         >
           <GoogleIcon class="w-5 h-5 mr-2" />

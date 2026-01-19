@@ -17,8 +17,8 @@ export const buttonVariants = cva(
           'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
-        cta: 'bg-cs-lime text-cs-charcoal font-primary font-bold hover:brightness-105 uppercase tracking-wide text-lg h-auto py-4 px-8 rounded-lg transition-all',
-        regular: 'bg-cs-light-green text-white font-secondary font-medium hover:bg-cs-light-green hover:text-cs-charcoal transition-colors border border-cs-whiteish h-auto px-4 py-2 rounded-lg',
+        cta: 'bg-cs-lime text-cs-bg font-primary font-bold hover:brightness-110 uppercase tracking-wide text-lg h-auto py-4 px-8 rounded-lg transition-all shadow-lg shadow-cs-lime/20',
+        regular: 'bg-cs-brand text-white font-secondary font-medium hover:bg-cs-lighter-green hover:text-cs-bg transition-colors border border-cs-border h-auto px-4 py-2 rounded-lg',
         special: 'btn-special',
       },
       size: {

@@ -136,7 +136,7 @@ function getCommentColor(comment: CommentThread['comments'][0]) {
         >
           <div class="flex items-center gap-2 mb-1">
             <div
-              class="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-cs-charcoal"
+              class="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-cs-bg"
               :style="{ backgroundColor: getCommentColor(comment) }"
             >
               {{ (comment.author?.display_name || comment.guest_name
@@ -156,7 +156,7 @@ function getCommentColor(comment: CommentThread['comments'][0]) {
       <div class="p-3 bg-gray-50 border-t">
         <div class="flex items-center gap-2">
           <div
-            class="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-cs-charcoal shrink-0"
+            class="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-cs-bg shrink-0"
             :style="{ backgroundColor: currentUserColor }"
           >
             {{ currentUserInitial }}
@@ -173,7 +173,7 @@ function getCommentColor(comment: CommentThread['comments'][0]) {
             >
             <button
               class="ml-2 h-6 w-6 flex items-center justify-center rounded-full transition-colors shrink-0"
-              :class="replyContent.trim() ? 'bg-cs-dark-green text-white hover:opacity-90' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+              :class="replyContent.trim() ? 'bg-cs-brand text-white hover:opacity-90' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
               :disabled="!replyContent.trim()"
               @click="handleReply"
             >

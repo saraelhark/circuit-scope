@@ -99,7 +99,7 @@ async function handleUpdateMetadata(id: string, payload: { name?: string | null,
 
 <template>
   <div
-    class="min-h-[calc(100vh-3.5rem)] container px-4 sm:px-8 py-8 max-w-6xl mx-auto bg-cs-light-green border-x-4 border-y-0 border-white text-white"
+    class="min-h-[calc(100vh-3.5rem)] container px-4 sm:px-8 py-8 max-w-6xl mx-auto bg-cs-panel border-x border-y-0 border-cs-border text-white"
   >
     <div class="flex flex-col gap-8 lg:flex-row">
       <aside class="w-full lg:w-64 shrink-0 space-y-6">

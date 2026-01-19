@@ -13,7 +13,7 @@ const attrs = useAttrs()
 <template>
   <div
     v-bind="attrs"
-    :class="cn('rounded-[8px] border-4 border-white bg-cs-light-green text-white shadow-sm', props.class)"
+    :class="cn('rounded-lg border border-cs-border bg-cs-card text-white shadow-sm', props.class)"
   >
     <slot />
   </div>

@@ -69,7 +69,7 @@ onMounted(() => {
       >
       <button
         class="ml-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-        :class="content.trim() ? 'bg-cs-dark-green text-white hover:opacity-90' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+        :class="content.trim() ? 'bg-cs-brand text-white hover:opacity-90' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
         :disabled="!content.trim()"
         @click="handleSubmit"
       >

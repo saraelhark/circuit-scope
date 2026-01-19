@@ -114,7 +114,7 @@ function handlePointerLeave(event: PointerEvent) {
   <div class="w-full">
     <div
       v-if="!hasPhotos"
-      class="flex h-64 items-center justify-center rounded-md border border-white/20 bg-cs-charcoal/40 text-sm text-cs-whiteish/80"
+      class="flex h-64 items-center justify-center rounded-md border border-cs-border bg-cs-panel text-sm text-white/60"
     >
       No photos available.
     </div>
@@ -152,7 +152,7 @@ function handlePointerLeave(event: PointerEvent) {
 
       <div
         ref="contentRef"
-        class="relative flex w-full items-center justify-center overflow-hidden rounded-md bg-cs-charcoal py-6 md:py-8 touch-none select-none"
+        class="relative flex w-full items-center justify-center overflow-hidden rounded-md bg-cs-panel py-6 md:py-8 touch-none select-none"
         @wheel.prevent="handleWheel"
         @pointerdown="handlePointerDown"
         @pointermove="handlePointerMove"
@@ -176,7 +176,7 @@ function handlePointerLeave(event: PointerEvent) {
           >
           <div
             v-else
-            class="text-sm text-cs-whiteish/80"
+            class="text-sm text-white/60"
           >
             Photo not available.
           </div>

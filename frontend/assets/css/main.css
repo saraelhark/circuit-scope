@@ -6,24 +6,25 @@
 @tailwind utilities;
 
 @layer components {
+
     .btn-special {
-        @apply relative overflow-hidden bg-cs-blue text-white font-primary font-bold px-6 py-2 rounded-lg border-2 border-white hover:brightness-105 transition-all uppercase tracking-wider pl-14;
+        @apply relative overflow-hidden bg-cs-cyan text-cs-bg font-primary font-bold px-6 py-2 rounded-lg border-2 border-cs-border hover:brightness-110 transition-all uppercase tracking-wider pl-14;
     }
 
     .btn-special::before {
         content: "";
         @apply absolute left-2 top-0 bottom-0 w-8 my-auto h-full;
         background: linear-gradient(90deg,
-                #8B5A2B 0%, #8B5A2B 20%,
+                #E09F3E 0%, #E09F3E 20%,
                 transparent 20%, transparent 30%,
-                #202223 30%, #202223 50%,
+                #1E2A27 30%, #1E2A27 50%,
                 transparent 50%, transparent 60%,
-                #E45858 60%, #E45858 80%,
+                #F26D6D 60%, #F26D6D 80%,
                 transparent 80%, transparent 90%);
     }
 
     .btn-regular {
-        @apply bg-cs-light-green text-white font-secondary font-medium px-4 py-2 rounded-lg hover:bg-cs-lighter-green hover:text-cs-charcoal transition-colors border border-cs-whiteish;
+        @apply bg-cs-brand text-white font-secondary font-medium px-4 py-2 rounded-lg hover:bg-cs-lighter-green hover:text-cs-bg transition-colors border border-cs-border;
     }
 }
 
@@ -57,30 +58,48 @@
     }
 
     .dark {
-        --background: 240 10% 3.9%;
-        --foreground: 0 0% 98%;
-        --card: 240 10% 3.9%;
-        --card-foreground: 0 0% 98%;
-        --popover: 240 10% 3.9%;
-        --popover-foreground: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 240 5.9% 10%;
-        --secondary: 240 3.7% 15.9%;
-        --secondary-foreground: 0 0% 98%;
-        --muted: 240 3.7% 15.9%;
-        --muted-foreground: 240 5% 64.9%;
-        --accent: 240 3.7% 15.9%;
-        --accent-foreground: 0 0% 98%;
-        --destructive: 0 62.8% 30.6%;
+        --background: 160 14% 7%;
+        /* #101615 - App background */
+        --foreground: 150 8% 90%;
+        /* Light text for readability */
+        --card: 160 14% 13%;
+        /* #1E2A27 - Cards */
+        --card-foreground: 150 8% 92%;
+        --popover: 160 14% 11%;
+        /* #18211F - Panels/popovers */
+        --popover-foreground: 150 8% 92%;
+        --primary: 158 55% 41%;
+        /* #2FA37A - Brand green */
+        --primary-foreground: 160 14% 7%;
+        --secondary: 160 14% 13%;
+        /* #1E2A27 */
+        --secondary-foreground: 150 8% 90%;
+        --muted: 160 14% 11%;
+        /* #18211F */
+        --muted-foreground: 155 8% 55%;
+        /* Muted text */
+        --accent: 174 58% 56%;
+        /* #4FD1C5 - Cyan interaction */
+        --accent-foreground: 160 14% 7%;
+        --destructive: 0 74% 69%;
+        /* #F26D6D - Error */
         --destructive-foreground: 0 0% 98%;
-        --border: 240 3.7% 15.9%;
-        --input: 240 3.7% 15.9%;
-        --ring: 240 4.9% 83.9%;
-        --chart-1: 220 70% 50%;
-        --chart-2: 160 60% 45%;
-        --chart-3: 30 80% 55%;
-        --chart-4: 280 65% 60%;
-        --chart-5: 340 75% 55%;
+        --border: 160 14% 19%;
+        /* #2A3A35 - Borders */
+        --input: 160 14% 19%;
+        /* #2A3A35 */
+        --ring: 158 55% 41%;
+        /* #2FA37A - Focus ring */
+        --chart-1: 158 55% 41%;
+        /* Brand green */
+        --chart-2: 174 58% 56%;
+        /* Cyan */
+        --chart-3: 36 74% 56%;
+        /* Copper */
+        --chart-4: 72 93% 63%;
+        /* Lime */
+        --chart-5: 0 74% 69%;
+        /* Error red */
     }
 }
 

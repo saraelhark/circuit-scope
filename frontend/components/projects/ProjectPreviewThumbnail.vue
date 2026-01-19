@@ -86,7 +86,7 @@ const isLoading = computed(() => status.value === 'pending' || status.value === 
 
 <template>
   <div
-    class="relative aspect-square w-full overflow-hidden rounded-md"
+    class="relative h-full w-full overflow-hidden"
     :class="thumbnailBackgroundClass"
   >
     <div

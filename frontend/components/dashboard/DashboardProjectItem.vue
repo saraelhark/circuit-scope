@@ -64,7 +64,7 @@ function saveEdit() {
 
 function goToProject() {
   if (isEditing.value) return
-  router.push(`/projects/${props.project.id}/review`)
+  router.push(`/projects/${props.project.id}`)
 }
 
 async function shareProject() {
@@ -90,7 +90,7 @@ async function shareProject() {
 <template>
   <Card class="flex flex-col gap-4 p-4 transition-all sm:flex-row sm:items-center sm:justify-between">
     <div class="flex flex-1 items-start gap-4">
-      <div class="h-16 w-16 shrink-0">
+      <div class="h-24 w-24 sm:h-28 sm:w-28 shrink-0 rounded-md overflow-hidden bg-cs-panel">
         <ProjectPreviewThumbnail
           :project-id="project.id"
           :thumbnail-kind="project.thumbnail_kind"
@@ -104,7 +104,7 @@ async function shareProject() {
             <Input
               :id="`project-${project.id}-name-inline`"
               v-model="editName"
-              class="h-8 px-2 py-1 text-sm font-semibold text-white bg-cs-charcoal/40 border-white/60"
+              class="h-8 px-2 py-1 text-sm font-semibold text-white bg-cs-panel border-cs-border"
             />
           </template>
           <h3
@@ -133,12 +133,12 @@ async function shareProject() {
 
             <div
               v-if="showStatusMenu"
-              class="absolute right-0 z-10 mt-12 p-1 w-40 rounded-lg border border-white/30 bg-cs-light-green text-xs text-foreground"
+              class="absolute right-0 z-10 mt-12 p-1 w-40 rounded-lg border border-cs-border bg-cs-panel text-xs text-white"
               @click.stop
             >
               <button
                 type="button"
-                class="flex w-full items-center gap-2 p-2 rounded-sm hover:bg-cs-charcoal/10"
+                class="flex w-full items-center gap-2 p-2 rounded-sm hover:bg-cs-card"
                 @click.stop="startEdit(); showStatusMenu = false"
               >
                 <i class="fas fa-pencil-alt h-4 w-4" />
@@ -146,7 +146,7 @@ async function shareProject() {
               </button>
               <button
                 type="button"
-                class="flex w-full items-center gap-2 p-2 rounded-sm hover:bg-cs-charcoal/10"
+                class="flex w-full items-center gap-2 p-2 rounded-sm hover:bg-cs-card"
                 @click.stop="toggleStatus(); showStatusMenu = false"
               >
                 <i :class="isArchived ? 'fas fa-rotate h-4 w-4' : 'fas fa-archive h-4 w-4'" />

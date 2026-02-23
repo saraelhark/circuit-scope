@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ProjectsList from '~/components/projects/ProjectsList.vue'
+import HeroCanvasDemo from '~/components/home/HeroCanvasDemo.vue'
 import { Button } from '~/components/ui/button'
 import { useAppSeo } from '~/composables/useAppSeo'
 
@@ -44,6 +45,9 @@ defineOgImageComponent('OgTemplate', {
             </Button>
           </NuxtLink>
         </div>
+      </div>
+      <div class="mb-12 flex justify-center">
+        <HeroCanvasDemo />
       </div>
 
       <ProjectsList />
